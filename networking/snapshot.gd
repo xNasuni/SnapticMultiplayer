@@ -3,7 +3,7 @@ extends RefCounted
 const Pose := preload("pose.gd")
 
 const PROTOCOL := 1
-const POSE := 43
+const POSE := 47
 const TIME := 4
 const STATE := TIME + POSE
 const ENTRY := 4 + STATE
@@ -12,6 +12,7 @@ const HEADER := 1
 const SPIN := 32767.0
 const UNIT := 127.0
 const MAX_HIT := 2.0
+const MAX_BUMP := 40.0
 const MAX_TWIRL := 60.0
 
 const MODE := 0b011
@@ -19,6 +20,7 @@ const MOVING := 0b100
 const GROUNDED := 0b1000
 const MAGNETIC := 0b10000
 const AFTERIMAGE := 0b100000
+const MARBLE_TRAIL := 0b1000000
 
 
 static func pack_state(time: int, pose) -> PackedByteArray:
@@ -87,6 +89,8 @@ static func put_pose(bytes: PackedByteArray, at: int, pose) -> void:
 		flags |= MAGNETIC
 	if pose.afterimage:
 		flags |= AFTERIMAGE
+	if pose.marble_trail:
+		flags |= MARBLE_TRAIL
 
 	bytes.encode_float(at, pose.position.x)
 	bytes.encode_float(at + 4, pose.position.y)
@@ -113,6 +117,11 @@ static func put_pose(bytes: PackedByteArray, at: int, pose) -> void:
 	bytes.encode_u8(at + 36, to_byte(pose.hit_strength, MAX_HIT))
 	put_unit(bytes, at + 37, pose.up)
 	put_unit(bytes, at + 40, pose.twirl / MAX_TWIRL)
+
+	bytes.encode_u8(at + 43, pose.bumps & 0xFF)
+	bytes.encode_u8(at + 44, pose.magnets & 0xFF)
+	bytes.encode_u8(at + 45, to_byte(pose.bump_strength, MAX_BUMP))
+	bytes.encode_u8(at + 46, pose.clangs & 0xFF)
 
 
 static func get_pose(bytes: PackedByteArray, at: int):
@@ -141,6 +150,7 @@ static func get_pose(bytes: PackedByteArray, at: int):
 	pose.grounded = flags & GROUNDED != 0
 	pose.magnetic = flags & MAGNETIC != 0
 	pose.afterimage = flags & AFTERIMAGE != 0
+	pose.marble_trail = flags & MARBLE_TRAIL != 0
 
 	pose.spin = spin.normalized() if spin.length_squared() > 0.0 else Quaternion.IDENTITY
 
@@ -158,6 +168,11 @@ static func get_pose(bytes: PackedByteArray, at: int):
 	pose.hit_strength = from_byte(bytes.decode_u8(at + 36), MAX_HIT)
 	pose.up = up.normalized() if up.length_squared() > 0.0 else Vector3.UP
 	pose.twirl = get_unit(bytes, at + 40) * MAX_TWIRL
+
+	pose.bumps = bytes.decode_u8(at + 43)
+	pose.magnets = bytes.decode_u8(at + 44)
+	pose.bump_strength = from_byte(bytes.decode_u8(at + 45), MAX_BUMP)
+	pose.clangs = bytes.decode_u8(at + 46)
 
 	return pose
 

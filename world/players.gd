@@ -4,6 +4,8 @@ const Pose := preload("../networking/pose.gd")
 const RemotePlayer := preload("remote_player.gd")
 const LocalEffects := preload("local_effects.gd")
 const ChatStack := preload("chat_stack.gd")
+const ChatSound := preload("chat_sound.gd")
+const RemoteAudio := preload("remote_audio.gd")
 
 const HEAD_HEIGHT := 1.75
 
@@ -15,6 +17,7 @@ var _color := Color.WHITE
 var _roster := {}
 var _avatars := {}
 var _stacks := {}
+var _audio := RemoteAudio.new()
 
 
 func _init(net) -> void:
@@ -51,6 +54,18 @@ func say(id: int, text: String) -> void:
 	if stack:
 		stack.set_typing(false, 0.0)
 		stack.say(text, id == multiplayer.get_unique_id())
+		_chime(id)
+
+
+func _chime(id: int) -> void:
+	var local := id == multiplayer.get_unique_id()
+	var at = _local_head() if local else _avatar_head(id)
+
+	if at == null:
+		return
+
+	_audio.listen(_level.get_viewport().get_camera_3d())
+	ChatSound.play(_level, "send" if local else "receive", at, 1.0 if local else _audio.reach(at))
 
 
 func typing(id: int, on: bool, timeout: float) -> void:
@@ -127,6 +142,9 @@ func local_pose() -> Variant:
 
 
 func _process(delta: float) -> void:
+	if _active:
+		_effects.poll()
+
 	for id in _avatars:
 		var avatar: Node3D = _avatars[id]
 		var pose = _net.sample(id, delta)

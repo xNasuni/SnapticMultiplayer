@@ -22,6 +22,7 @@ var skid := 0.0
 var twirl := Vector3.ZERO
 var magnetic := false
 var afterimage := false
+var marble_trail := false
 
 var jumps := 0
 var landings := 0
@@ -29,6 +30,10 @@ var hits := 0
 var trails := 0
 var hit_normal := Vector3.UP
 var hit_strength := 0.0
+var bumps := 0
+var magnets := 0
+var clangs := 0
+var bump_strength := 0.0
 
 
 func differs(other) -> bool:
@@ -37,9 +42,13 @@ func differs(other) -> bool:
 		or grounded != other.grounded \
 		or magnetic != other.magnetic \
 		or afterimage != other.afterimage \
+		or marble_trail != other.marble_trail \
 		or jumps != other.jumps \
 		or landings != other.landings \
 		or hits != other.hits \
+		or bumps != other.bumps \
+		or magnets != other.magnets \
+		or clangs != other.clangs \
 		or trails != other.trails \
 		or absf(running - other.running) > STEP \
 		or absf(wall_slide - other.wall_slide) > STEP \
@@ -74,6 +83,7 @@ func mixed(other, t: float):
 	pose.grounded = near.grounded
 	pose.magnetic = near.magnetic
 	pose.afterimage = near.afterimage
+	pose.marble_trail = near.marble_trail
 
 	pose.jumps = near.jumps
 	pose.landings = near.landings
@@ -81,6 +91,10 @@ func mixed(other, t: float):
 	pose.trails = near.trails
 	pose.hit_normal = near.hit_normal
 	pose.hit_strength = near.hit_strength
+	pose.bumps = near.bumps
+	pose.magnets = near.magnets
+	pose.clangs = near.clangs
+	pose.bump_strength = near.bump_strength
 
 	return pose
 

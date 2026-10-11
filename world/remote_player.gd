@@ -1,6 +1,7 @@
 extends Node3D
 
 const Pose := preload("../networking/pose.gd")
+const RemoteAudio := preload("remote_audio.gd")
 
 const RIG := "res://actors/player/art/anon_rig.blend"
 const PLAYER := "res://actors/player/player.tscn"
@@ -19,6 +20,7 @@ const TWIRL := "HeadFollower/HeadShaker/CyclicSmearVFX"
 const SKID := "HeadFollower/HeadFollowerNoRotation/SkidSparksVFX"
 const MAGNET := "MarbleRigidbody/MagnetArea3D/MagneticFieldVFX"
 const WALL := "anon_rig/Anon/Skeleton3D/RightHandAttachment/WallSlideVFX"
+const MARBLE_TRAIL := "HeadFollower/HeadShaker/MarbleAfterimageVFX"
 
 const HEAD_BONE := "Head_2"
 const ARM_BONE := "Forearm.R"
@@ -66,6 +68,8 @@ var _trail: Node
 var _twirl: Node3D
 var _twirl_material: ShaderMaterial
 var _ghosts: Node
+var _marble_trail: Node
+var _trailing := false
 
 var _mode: int = Pose.Mode.BODY
 var _spin := Quaternion.IDENTITY
@@ -81,6 +85,11 @@ var _jumps := 0
 var _landings := 0
 var _hits := 0
 var _trails := 0
+var _bumps := 0
+var _magnets := 0
+var _clangs := 0
+
+var _audio: RemoteAudio
 
 
 func setup(color: Color, effects := true) -> void:
@@ -110,14 +119,25 @@ func setup(color: Color, effects := true) -> void:
 	_add_tree(player)
 	_add_effects(player)
 
+	if effects:
+		_audio = RemoteAudio.new()
+
 
 func _ready() -> void:
 	if _tree:
 		_tree.active = true
 
 
+func _exit_tree() -> void:
+	if _audio:
+		_audio.stop()
+
+
 func follow(pose, delta: float) -> void:
 	if not _placed or pose.mode != _mode:
+		if _placed and _audio:
+			_audio.play(SFX.Name.MARBLE_POP, pose.position)
+
 		_velocity = pose.velocity
 		_placed = true
 	else:
@@ -134,8 +154,20 @@ func follow(pose, delta: float) -> void:
 
 	_animate(Vector2(_velocity.x, _velocity.z).length(), pose.moving, delta)
 	_play(pose)
+	_sound(pose, delta)
 	_place_head()
 	_place_floor()
+
+
+func _sound(pose, delta: float) -> void:
+	if _audio == null:
+		return
+
+	var rolling: bool = pose.mode == Pose.Mode.MARBLE and pose.grounded
+
+	_audio.listen(get_viewport().get_camera_3d())
+	_audio.roll(global_position, _velocity.length(), rolling, delta)
+	_audio.slide(global_position, pose.wall_slide > 0.0, delta)
 
 
 func tint(color: Color) -> void:
@@ -175,6 +207,14 @@ func _play(pose) -> void:
 	if _ghosts:
 		_ghosts.emitting = pose.afterimage
 
+	if _marble_trail and pose.marble_trail != _trailing:
+		_trailing = pose.marble_trail
+
+		if _trailing:
+			_marble_trail.emit_vfx()
+		else:
+			_marble_trail.stop_vfx()
+
 	if _skid:
 		var facing := Vector3(-sin(pose.yaw), 0.0, -cos(pose.yaw))
 
@@ -205,7 +245,26 @@ func _play(pose) -> void:
 		_landings = pose.landings
 		_hits = pose.hits
 		_trails = pose.trails
+		_bumps = pose.bumps
+		_magnets = pose.magnets
+		_clangs = pose.clangs
 		return
+
+	if _audio and pose.bumps != _bumps:
+		if _mode == Pose.Mode.RAGDOLL:
+			_audio.play(SFX.Name.D_HIT_LIGHT, global_position)
+		else:
+			_audio.hit(global_position, pose.bump_strength, false)
+
+	if _audio and pose.magnets != _magnets:
+		_audio.hit(global_position, pose.bump_strength, true)
+
+	if _audio and pose.clangs != _clangs:
+		_audio.play(SFX.Name.D_HIT, global_position)
+
+	_bumps = pose.bumps
+	_magnets = pose.magnets
+	_clangs = pose.clangs
 
 	if pose.jumps != _jumps:
 		_jumps = pose.jumps
@@ -246,7 +305,8 @@ func _jump() -> void:
 	if _jump_dust:
 		_jump_dust.emit_vfx({&"position": feet, &"normal": _up})
 
-	AudioManager.play_sound_effect_at_location_3d(SFX.Name.JUMP, global_position)
+	if _audio:
+		_audio.play(SFX.Name.JUMP, global_position)
 
 
 func _land() -> void:
@@ -255,7 +315,8 @@ func _land() -> void:
 	if _land_dust:
 		_land_dust.emit_vfx()
 
-	AudioManager.play_sound_effect_at_location_3d(SFX.Name.LAND, global_position)
+	if _audio:
+		_audio.play(SFX.Name.LAND, global_position)
 
 
 func _hit(normal: Vector3, strength: float) -> void:
@@ -296,6 +357,7 @@ func _add_effects(player: PackedScene) -> void:
 	_sparks = _take(source, SPARKS)
 	_skid = _take(source, SKID, _anchor)
 	_twirl = _take(source, TWIRL, _anchor)
+	_marble_trail = _take(source, MARBLE_TRAIL, _anchor)
 
 	ghosts.source = _body
 	ghosts.head = _head
