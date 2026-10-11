@@ -21,6 +21,11 @@ const SKID := "HeadFollower/HeadFollowerNoRotation/SkidSparksVFX"
 const MAGNET := "MarbleRigidbody/MagnetArea3D/MagneticFieldVFX"
 const WALL := "anon_rig/Anon/Skeleton3D/RightHandAttachment/WallSlideVFX"
 const MARBLE_TRAIL := "HeadFollower/HeadShaker/MarbleAfterimageVFX"
+const BOX := "uid://cb5qj6akobncw"
+const BOX_COUNT := 100
+const BOX_LIFETIME := 3.0
+const BOX_PUSH := 150.0
+const BOX_SPIN := 5.0
 
 const HEAD_BONE := "Head_2"
 const ARM_BONE := "Forearm.R"
@@ -81,13 +86,8 @@ var _air_blend := 0.0
 var _run_blend := 0.0
 
 var _counted := false
-var _jumps := 0
-var _landings := 0
-var _hits := 0
-var _trails := 0
-var _bumps := 0
-var _magnets := 0
-var _clangs := 0
+var _events := 0
+var _shown := true
 
 var _audio: RemoteAudio
 
@@ -153,6 +153,9 @@ func follow(pose, delta: float) -> void:
 	_body.visible = _mode != Pose.Mode.MARBLE
 
 	_animate(Vector2(_velocity.x, _velocity.z).length(), pose.moving, delta)
+	if _shown == pose.hidden:
+		_reveal(not pose.hidden)
+
 	_play(pose)
 	_sound(pose, delta)
 	_place_head()
@@ -239,50 +242,46 @@ func _play(pose) -> void:
 			if _twirl_material:
 				_twirl_material.set_shader_parameter(&"time_scale", axis.length() / TWIRL_WIND)
 
-	if not _counted:
-		_counted = true
-		_jumps = pose.jumps
-		_landings = pose.landings
-		_hits = pose.hits
-		_trails = pose.trails
-		_bumps = pose.bumps
-		_magnets = pose.magnets
-		_clangs = pose.clangs
+	var fresh: int = pose.events & ~_events
+
+	_events = pose.events
+
+	if _counted:
+		_react(fresh, pose)
+
+	_counted = true
+
+
+func _react(fresh: int, pose) -> void:
+	if fresh & Pose.BURST:
+		_burst()
+
+	if fresh & Pose.JUMP:
+		_jump()
+
+	if fresh & Pose.LAND:
+		_land()
+
+	if fresh & Pose.HIT:
+		_hit(pose.hit_normal, pose.hit_strength)
+
+	if fresh & Pose.TRAIL and _trail:
+		_trail.emit_vfx()
+
+	if _audio == null:
 		return
 
-	if _audio and pose.bumps != _bumps:
+	if fresh & Pose.BUMP:
 		if _mode == Pose.Mode.RAGDOLL:
 			_audio.play(SFX.Name.D_HIT_LIGHT, global_position)
 		else:
 			_audio.hit(global_position, pose.bump_strength, false)
 
-	if _audio and pose.magnets != _magnets:
+	if fresh & Pose.MAGNET:
 		_audio.hit(global_position, pose.bump_strength, true)
 
-	if _audio and pose.clangs != _clangs:
+	if fresh & Pose.CLANG:
 		_audio.play(SFX.Name.D_HIT, global_position)
-
-	_bumps = pose.bumps
-	_magnets = pose.magnets
-	_clangs = pose.clangs
-
-	if pose.jumps != _jumps:
-		_jumps = pose.jumps
-		_jump()
-
-	if pose.landings != _landings:
-		_landings = pose.landings
-		_land()
-
-	if pose.hits != _hits:
-		_hits = pose.hits
-		_hit(pose.hit_normal, pose.hit_strength)
-
-	if pose.trails != _trails:
-		_trails = pose.trails
-
-		if _trail:
-			_trail.emit_vfx()
 
 
 static func run(effect: Node, ratio: float) -> void:
@@ -317,6 +316,37 @@ func _land() -> void:
 
 	if _audio:
 		_audio.play(SFX.Name.LAND, global_position)
+
+
+func _burst() -> void:
+	var at := head_position()
+
+	if _audio == null or _audio.reach(at) <= 0.0:
+		return
+
+	_audio.play(SFX.Name.BOWLING_PINS, at)
+
+	var scene := load(BOX) as PackedScene
+
+	for i in BOX_COUNT:
+		var box = scene.instantiate()
+		var spread := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1))
+
+		box.max_lifetime = BOX_LIFETIME
+		box.collision_layer = 0
+
+		get_parent().add_child(box)
+		box.global_position = at + spread
+		box.apply_central_impulse(BOX_PUSH * spread)
+		box.apply_torque_impulse(BOX_SPIN * spread)
+
+
+func _reveal(shown: bool) -> void:
+	_shown = shown
+	_rig.visible = shown
+
+	if _head:
+		_head.visible = shown
 
 
 func _hit(normal: Vector3, strength: float) -> void:
@@ -427,7 +457,7 @@ func _place_floor() -> void:
 	if not is_equal_approx(_shadow.box_size.x, width):
 		_shadow.box_size = Vector3(width, _shadow.box_size.y, width)
 
-	_shadow.visible = not hit.is_empty()
+	_shadow.visible = _shown and not hit.is_empty()
 
 
 func _place_head() -> void:

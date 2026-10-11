@@ -3,7 +3,7 @@ extends RefCounted
 const Pose := preload("pose.gd")
 
 const PROTOCOL := 1
-const POSE := 47
+const POSE := 41
 const TIME := 4
 const STATE := TIME + POSE
 const ENTRY := 4 + STATE
@@ -21,6 +21,7 @@ const GROUNDED := 0b1000
 const MAGNETIC := 0b10000
 const AFTERIMAGE := 0b100000
 const MARBLE_TRAIL := 0b1000000
+const HIDDEN := 0b10000000
 
 
 static func pack_state(time: int, pose) -> PackedByteArray:
@@ -91,6 +92,8 @@ static func put_pose(bytes: PackedByteArray, at: int, pose) -> void:
 		flags |= AFTERIMAGE
 	if pose.marble_trail:
 		flags |= MARBLE_TRAIL
+	if pose.hidden:
+		flags |= HIDDEN
 
 	bytes.encode_float(at, pose.position.x)
 	bytes.encode_float(at + 4, pose.position.y)
@@ -108,20 +111,13 @@ static func put_pose(bytes: PackedByteArray, at: int, pose) -> void:
 	bytes.encode_u8(at + 27, to_byte(pose.bhop_wind, 1.0))
 	bytes.encode_u8(at + 28, to_byte(pose.skid, 1.0))
 
-	bytes.encode_u8(at + 29, pose.jumps & 0xFF)
-	bytes.encode_u8(at + 30, pose.landings & 0xFF)
-	bytes.encode_u8(at + 31, pose.hits & 0xFF)
-	bytes.encode_u8(at + 32, pose.trails & 0xFF)
+	bytes.encode_u8(at + 29, pose.events & 0xFF)
 
-	put_unit(bytes, at + 33, pose.hit_normal)
-	bytes.encode_u8(at + 36, to_byte(pose.hit_strength, MAX_HIT))
-	put_unit(bytes, at + 37, pose.up)
-	put_unit(bytes, at + 40, pose.twirl / MAX_TWIRL)
-
-	bytes.encode_u8(at + 43, pose.bumps & 0xFF)
-	bytes.encode_u8(at + 44, pose.magnets & 0xFF)
-	bytes.encode_u8(at + 45, to_byte(pose.bump_strength, MAX_BUMP))
-	bytes.encode_u8(at + 46, pose.clangs & 0xFF)
+	put_unit(bytes, at + 30, pose.hit_normal)
+	bytes.encode_u8(at + 33, to_byte(pose.hit_strength, MAX_HIT))
+	put_unit(bytes, at + 34, pose.up)
+	put_unit(bytes, at + 37, pose.twirl / MAX_TWIRL)
+	bytes.encode_u8(at + 40, to_byte(pose.bump_strength, MAX_BUMP))
 
 
 static func get_pose(bytes: PackedByteArray, at: int):
@@ -135,8 +131,8 @@ static func get_pose(bytes: PackedByteArray, at: int):
 		bytes.decode_s16(at + 23) / SPIN,
 	)
 
-	var normal := get_unit(bytes, at + 33)
-	var up := get_unit(bytes, at + 37)
+	var normal := get_unit(bytes, at + 30)
+	var up := get_unit(bytes, at + 34)
 
 	pose.position = Vector3(
 		bytes.decode_float(at),
@@ -151,6 +147,7 @@ static func get_pose(bytes: PackedByteArray, at: int):
 	pose.magnetic = flags & MAGNETIC != 0
 	pose.afterimage = flags & AFTERIMAGE != 0
 	pose.marble_trail = flags & MARBLE_TRAIL != 0
+	pose.hidden = flags & HIDDEN != 0
 
 	pose.spin = spin.normalized() if spin.length_squared() > 0.0 else Quaternion.IDENTITY
 
@@ -159,20 +156,13 @@ static func get_pose(bytes: PackedByteArray, at: int):
 	pose.bhop_wind = from_byte(bytes.decode_u8(at + 27), 1.0)
 	pose.skid = from_byte(bytes.decode_u8(at + 28), 1.0)
 
-	pose.jumps = bytes.decode_u8(at + 29)
-	pose.landings = bytes.decode_u8(at + 30)
-	pose.hits = bytes.decode_u8(at + 31)
-	pose.trails = bytes.decode_u8(at + 32)
+	pose.events = bytes.decode_u8(at + 29)
 
 	pose.hit_normal = normal.normalized() if normal.length_squared() > 0.0 else Vector3.UP
-	pose.hit_strength = from_byte(bytes.decode_u8(at + 36), MAX_HIT)
+	pose.hit_strength = from_byte(bytes.decode_u8(at + 33), MAX_HIT)
 	pose.up = up.normalized() if up.length_squared() > 0.0 else Vector3.UP
-	pose.twirl = get_unit(bytes, at + 40) * MAX_TWIRL
-
-	pose.bumps = bytes.decode_u8(at + 43)
-	pose.magnets = bytes.decode_u8(at + 44)
-	pose.bump_strength = from_byte(bytes.decode_u8(at + 45), MAX_BUMP)
-	pose.clangs = bytes.decode_u8(at + 46)
+	pose.twirl = get_unit(bytes, at + 37) * MAX_TWIRL
+	pose.bump_strength = from_byte(bytes.decode_u8(at + 40), MAX_BUMP)
 
 	return pose
 

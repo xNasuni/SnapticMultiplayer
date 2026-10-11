@@ -1,26 +1,25 @@
 extends RefCounted
 
+const Pose := preload("../networking/pose.gd")
+
 const MIN_HIT := 10.0
 const MIN_BUMP := 1.0
 const BUMP_GAP := 100
 const SAME_FACE := 0.8
 const CLANG := 30.0
+const HOLD := 120
 const MARBLE_MODE := 1
 const RAGDOLL_MODE := 2
+const COOKED := &"Cooked"
 
-var jumps := 0
-var landings := 0
-var hits := 0
-var trails := 0
-var bumps := 0
-var magnets := 0
-var clangs := 0
 var bump_strength := 0.0
 var hit_normal := Vector3.UP
 var hit_strength := 0.0
 
+var _until := {}
 var _magnetized := false
 var _impacting := false
+var _cooked := false
 var _last_collision := 0
 
 var _player: Node
@@ -35,17 +34,12 @@ func watch(player: Node) -> void:
 		return
 
 	_player = player
-	jumps = 0
-	landings = 0
-	hits = 0
-	trails = 0
-	bumps = 0
-	magnets = 0
-	clangs = 0
+	_until.clear()
+	_cooked = false
 
-	listen(player.get("jump_vfx"), func() -> void: jumps = (jumps + 1) & 0xFF)
-	listen(player.get("landing_dust_vfx"), func() -> void: landings = (landings + 1) & 0xFF)
-	listen(player.get("impact_trail_vfx"), func() -> void: trails = (trails + 1) & 0xFF)
+	listen(player.get("jump_vfx"), raise.bind(Pose.JUMP))
+	listen(player.get("landing_dust_vfx"), raise.bind(Pose.LAND))
+	listen(player.get("impact_trail_vfx"), raise.bind(Pose.TRAIL))
 	listen(player.get("sparks_vfx"), on_sparks)
 
 	var marble = player.get("marble")
@@ -70,15 +64,9 @@ func fill(pose) -> void:
 	if marble and not marble.is_magnetized():
 		_magnetized = false
 
+	pose.events = events()
+	pose.hidden = not _player.visible
 	pose.marble_trail = particles != null and particles.emitting
-
-	pose.jumps = jumps
-	pose.landings = landings
-	pose.hits = hits
-	pose.trails = trails
-	pose.bumps = bumps
-	pose.magnets = magnets
-	pose.clangs = clangs
 	pose.bump_strength = bump_strength
 	pose.hit_normal = hit_normal
 	pose.hit_strength = hit_strength
@@ -91,6 +79,24 @@ func fill(pose) -> void:
 	pose.twirl = skid.spin if skid else Vector3.ZERO
 	pose.magnetic = field != null and field.emitting
 	pose.afterimage = ghosts != null and ghosts.emitting
+
+
+func raise(bit: int) -> void:
+	var now := Time.get_ticks_msec()
+
+	if _until.get(bit, 0) <= now:
+		_until[bit] = now + HOLD
+
+
+func events() -> int:
+	var now := Time.get_ticks_msec()
+	var mask := 0
+
+	for bit in _until:
+		if _until[bit] > now:
+			mask |= bit
+
+	return mask
 
 
 func listen(effect: Object, callback: Callable) -> void:
@@ -110,7 +116,7 @@ func ratio(effect: Object) -> float:
 
 
 func on_sparks() -> void:
-	hits = (hits + 1) & 0xFF
+	raise(Pose.HIT)
 
 	if _frame == Engine.get_physics_frames():
 		commit()
@@ -136,28 +142,42 @@ func hear(impact: Vector3, normal: Vector3) -> void:
 
 	if marble.is_magnetized() and not _magnetized:
 		_magnetized = true
-		magnets = (magnets + 1) & 0xFF
 		bump_strength = strength
+		raise(Pose.MAGNET)
 	elif strength > MIN_BUMP and fresh:
-		bumps = (bumps + 1) & 0xFF
 		bump_strength = strength
+		raise(Pose.BUMP)
 
 
 func poll() -> void:
 	var impacting: bool = Global.is_impacting
 
 	if impacting and not _impacting:
-		clangs = (clangs + 1) & 0xFF
+		raise(Pose.CLANG)
 
 	_impacting = impacting
+
+	if is_instance_valid(_player):
+		poll_cooked()
+
+
+func poll_cooked() -> void:
+	var machine = _player.get("movement_state_machine")
+	var state = machine.current_state if machine else null
+	var cooked: bool = state != null and state.name == COOKED
+
+	if cooked and not _cooked:
+		raise(Pose.BURST)
+
+	_cooked = cooked
 
 
 func on_torso(impact: Vector3, _normal_face: Vector3, _position: Vector3) -> void:
 	var strength := impact.length()
 
 	if _player.get("player_mode") == RAGDOLL_MODE and strength >= MIN_BUMP and strength < CLANG:
-		bumps = (bumps + 1) & 0xFF
 		bump_strength = strength
+		raise(Pose.BUMP)
 
 
 func on_collided(impact: Vector3, normal: Vector3, _position: Vector3) -> void:

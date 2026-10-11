@@ -2,6 +2,15 @@ extends RefCounted
 
 enum Mode { BODY, MARBLE, RAGDOLL }
 
+const JUMP := 1
+const LAND := 2
+const HIT := 4
+const TRAIL := 8
+const BUMP := 16
+const MAGNET := 32
+const CLANG := 64
+const BURST := 128
+
 const MOVED := 0.02
 const TURNED := 0.03
 const STEP := 0.04
@@ -23,16 +32,11 @@ var twirl := Vector3.ZERO
 var magnetic := false
 var afterimage := false
 var marble_trail := false
+var hidden := false
 
-var jumps := 0
-var landings := 0
-var hits := 0
-var trails := 0
+var events := 0
 var hit_normal := Vector3.UP
 var hit_strength := 0.0
-var bumps := 0
-var magnets := 0
-var clangs := 0
 var bump_strength := 0.0
 
 
@@ -43,13 +47,8 @@ func differs(other) -> bool:
 		or magnetic != other.magnetic \
 		or afterimage != other.afterimage \
 		or marble_trail != other.marble_trail \
-		or jumps != other.jumps \
-		or landings != other.landings \
-		or hits != other.hits \
-		or bumps != other.bumps \
-		or magnets != other.magnets \
-		or clangs != other.clangs \
-		or trails != other.trails \
+		or hidden != other.hidden \
+		or events != other.events \
 		or absf(running - other.running) > STEP \
 		or absf(wall_slide - other.wall_slide) > STEP \
 		or absf(bhop_wind - other.bhop_wind) > STEP \
@@ -84,16 +83,11 @@ func mixed(other, t: float):
 	pose.magnetic = near.magnetic
 	pose.afterimage = near.afterimage
 	pose.marble_trail = near.marble_trail
+	pose.hidden = near.hidden
 
-	pose.jumps = near.jumps
-	pose.landings = near.landings
-	pose.hits = near.hits
-	pose.trails = near.trails
+	pose.events = near.events
 	pose.hit_normal = near.hit_normal
 	pose.hit_strength = near.hit_strength
-	pose.bumps = near.bumps
-	pose.magnets = near.magnets
-	pose.clangs = near.clangs
 	pose.bump_strength = near.bump_strength
 
 	return pose
