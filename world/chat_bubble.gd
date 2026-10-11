@@ -74,6 +74,10 @@ func setup(text: String, local: bool) -> void:
 	background.size = text_size + PADDING * 2.0
 	background.add_child(label)
 
+	_mount(background, SubViewport.UPDATE_ONCE)
+
+
+func _mount(background: Control, update: SubViewport.UpdateMode) -> void:
 	var viewport := SubViewport.new()
 
 	viewport.transparent_bg = true
@@ -82,7 +86,7 @@ func setup(text: String, local: bool) -> void:
 	viewport.size = Vector2i(background.size.ceil()) * SUPERSAMPLE
 	viewport.size_2d_override = Vector2i(background.size.ceil())
 	viewport.size_2d_override_stretch = true
-	viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	viewport.render_target_update_mode = update
 	viewport.add_child(background)
 	add_child(viewport)
 

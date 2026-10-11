@@ -46,24 +46,42 @@ func end() -> void:
 
 
 func say(id: int, text: String) -> void:
+	var stack = _stack_for(id, true)
+
+	if stack:
+		stack.set_typing(false, 0.0)
+		stack.say(text, id == multiplayer.get_unique_id())
+
+
+func typing(id: int, on: bool, timeout: float) -> void:
+	if id == multiplayer.get_unique_id():
+		return
+
+	var stack = _stack_for(id, on)
+
+	if stack:
+		stack.set_typing(on, timeout)
+
+
+func _stack_for(id: int, create: bool) -> Variant:
 	if not _active or not is_instance_valid(_level) or not _level.is_inside_tree():
-		return
+		return null
 
-	var me := multiplayer.get_unique_id()
-
-	if id != me and not _avatars.has(id):
-		return
+	if id != multiplayer.get_unique_id() and not _avatars.has(id):
+		return null
 
 	var stack = _stacks.get(id)
 
-	if not is_instance_valid(stack):
-		stack = ChatStack.new()
-		stack.name = "Chat%d" % id
+	if is_instance_valid(stack) or not create:
+		return stack if is_instance_valid(stack) else null
 
-		_level.add_child(stack)
-		_stacks[id] = stack
+	stack = ChatStack.new()
+	stack.name = "Chat%d" % id
 
-	stack.say(text, id == me)
+	_level.add_child(stack)
+	_stacks[id] = stack
+
+	return stack
 
 
 func set_roster(roster: Dictionary) -> void:
@@ -160,6 +178,11 @@ func _local_head() -> Variant:
 
 	if player == null:
 		return null
+
+	var marble = player.get("marble")
+
+	if player.get("player_mode") == 1 and marble:
+		return marble.global_position
 
 	var head = player.get_head_position()
 

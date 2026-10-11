@@ -2,24 +2,30 @@ extends CanvasLayer
 
 const Bubble := preload("../world/chat_bubble.gd")
 
-const MAX_LENGTH := 120
 const SIZE := Vector2(480, 48)
 const BOTTOM := 48.0
 const FONT_SIZE := 22
+const NEVER := -1000000
 
+var _net
 var _players
 var _active := false
 var _claimed := false
+var _last_typing := NEVER
 var _panel: Panel
 var _line: LineEdit
 
 
-func _init(players) -> void:
+func _init(net, players) -> void:
+	_net = net
 	_players = players
 	layer = 90
 
 
 func _ready() -> void:
+	_net.message_received.connect(_on_message)
+	_net.typing_received.connect(_on_typing)
+
 	_panel = Bubble.panel("remote")
 	_panel.visible = false
 	_panel.anchor_left = 0.5
@@ -32,7 +38,7 @@ func _ready() -> void:
 	_panel.offset_bottom = -BOTTOM
 
 	_line = LineEdit.new()
-	_line.max_length = MAX_LENGTH
+	_line.max_length = _net.MAX_MESSAGE
 	_line.placeholder_text = "say something..."
 	_line.context_menu_enabled = false
 	_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -83,6 +89,10 @@ func close() -> void:
 	if _panel == null:
 		return
 
+	if _panel.visible and Time.get_ticks_msec() - _last_typing < _net.TYPING_TIMEOUT * 1000.0:
+		_net.send_typing(false)
+
+	_last_typing = NEVER
 	_panel.visible = false
 	_line.release_focus()
 	_line.clear()
@@ -103,12 +113,25 @@ func _input(event: InputEvent) -> void:
 
 
 func _press(event: InputEventKey) -> void:
+	var before := _line.text
+
 	if event.is_action_pressed(&"pause") or event.keycode == KEY_ESCAPE:
 		close()
 	elif event.is_command_or_control_pressed():
 		_shortcut(event.keycode)
 	else:
 		_edit(event)
+
+	if _panel.visible and _line.text != before:
+		_announce_typing()
+
+
+func _announce_typing() -> void:
+	var now := Time.get_ticks_msec()
+
+	if now - _last_typing >= _net.TYPING_INTERVAL * 1000.0:
+		_last_typing = now
+		_net.send_typing(true)
 
 
 func _shortcut(keycode: Key) -> void:
@@ -186,45 +209,30 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _can_open() -> bool:
-	if LevelLoader.is_loading or Cursor.get_mode() == Cursor.Mode.MENU:
+	if LevelLoader.is_loading or Cursor.get_mode() == Cursor.Mode.MENU or GameInput.is_typing():
+		return false
+
+	var hovered := get_viewport().gui_get_hovered_control()
+
+	if Cursor.is_pointer_mode() and (hovered is LineEdit or hovered is TextEdit):
 		return false
 
 	return not (is_instance_valid(PauseMenu.instance) and PauseMenu.instance.is_paused())
 
 
 func _submit(text: String) -> void:
+	_last_typing = NEVER
 	close()
 
-	if text.strip_edges().is_empty():
-		return
-
-	if multiplayer.is_server():
-		_relay(1, text)
-	else:
-		_send.rpc_id(1, text)
+	if not text.strip_edges().is_empty():
+		_net.send_message(text)
 
 
-func _relay(id: int, text: String) -> void:
-	text = text.replace("\n", " ").strip_edges().left(MAX_LENGTH)
-
-	if text.is_empty():
-		return
-
-	_receive.rpc(id, text)
-	_show(id, text)
-
-
-func _show(id: int, text: String) -> void:
+func _on_message(id: int, text: String) -> void:
 	if _active:
 		_players.say(id, text)
 
 
-@rpc("any_peer", "call_remote", "reliable")
-func _send(text: String) -> void:
-	if multiplayer.is_server():
-		_relay(multiplayer.get_remote_sender_id(), text)
-
-
-@rpc("authority", "call_remote", "reliable")
-func _receive(id: int, text: String) -> void:
-	_show(id, text.replace("\n", " ").left(MAX_LENGTH))
+func _on_typing(id: int, typing: bool) -> void:
+	if _active:
+		_players.typing(id, typing, _net.TYPING_TIMEOUT)

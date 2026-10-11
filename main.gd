@@ -18,7 +18,7 @@ var _settings := PlayerSettings.new()
 var _conn := Connection.new()
 var _net := Replication.new()
 var _players := Players.new(_net)
-var _chat := ChatBox.new(_players)
+var _chat := ChatBox.new(_net, _players)
 var _screen := ServersScreen.new(_lan)
 var _store: RefCounted
 

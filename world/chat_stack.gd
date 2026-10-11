@@ -1,6 +1,7 @@
 extends Node3D
 
 const Bubble := preload("chat_bubble.gd")
+const Typing := preload("typing_bubble.gd")
 
 const MAX_VISIBLE := 3
 const GAP := 0.06
@@ -16,6 +17,8 @@ const FADE := 8.0
 var facing := Vector3.FORWARD
 
 var _bubbles := []
+var _typers := []
+var _typing_left := 0.0
 var _yaw := 0.0
 var _alpha := 1.0
 var _oriented := false
@@ -38,7 +41,32 @@ func say(text: String, local: bool) -> void:
 		live[i].dismiss()
 
 
+func set_typing(on: bool, timeout: float) -> void:
+	var typer = _current_typer()
+
+	if not on:
+		if typer:
+			typer.dismiss()
+
+		return
+
+	_typing_left = timeout
+
+	if typer == null:
+		typer = Typing.new()
+		typer.setup_typing()
+
+		add_child(typer)
+		_typers.append(typer)
+
+
 func _process(delta: float) -> void:
+	if _typing_left > 0.0:
+		_typing_left -= delta
+
+		if _typing_left <= 0.0:
+			set_typing(false, 0.0)
+
 	_orient(delta)
 	_layout(delta)
 
@@ -73,6 +101,11 @@ func _orient(delta: float) -> void:
 
 func _layout(delta: float) -> void:
 	var offset := LIFT
+	var typer = _current_typer()
+
+	if typer:
+		typer.target = offset
+		offset += typer.height + GAP
 
 	for i in range(_bubbles.size() - 1, -1, -1):
 		var bubble = _bubbles[i]
@@ -80,9 +113,22 @@ func _layout(delta: float) -> void:
 		bubble.target = offset
 		offset += bubble.height + GAP
 
-	for bubble in _bubbles.duplicate():
+	_advance(_bubbles, delta)
+	_advance(_typers, delta)
+
+
+func _advance(list: Array, delta: float) -> void:
+	for bubble in list.duplicate():
 		bubble.view_alpha = _alpha
 
 		if bubble.tick(delta):
-			_bubbles.erase(bubble)
+			list.erase(bubble)
 			bubble.queue_free()
+
+
+func _current_typer() -> Variant:
+	for typer in _typers:
+		if not typer.leaving():
+			return typer
+
+	return null

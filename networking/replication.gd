@@ -1,9 +1,15 @@
 extends Node
 
 signal timed_out
+signal message_received(id: int, text: String)
+signal typing_received(id: int, typing: bool)
 
 const Snapshot := preload("snapshot.gd")
 const Interpolator := preload("interpolator.gd")
+
+const MAX_MESSAGE := 120
+const TYPING_INTERVAL := 2.0
+const TYPING_TIMEOUT := 3.0
 
 const RATE := 0.05
 const BEAT := 1.0
@@ -55,6 +61,26 @@ func stop() -> void:
 	_latest.clear()
 	_heard.clear()
 	_remote.clear()
+
+
+func send_message(text: String) -> void:
+	if not _connected():
+		return
+
+	if multiplayer.is_server():
+		_relay_message(1, text)
+	else:
+		_message.rpc_id(1, text)
+
+
+func send_typing(typing: bool) -> void:
+	if not _connected():
+		return
+
+	if multiplayer.is_server():
+		_relay_typing(1, typing)
+	else:
+		_typing.rpc_id(1, typing)
 
 
 func sample(id: int, delta: float) -> Variant:
@@ -190,3 +216,44 @@ func _world(bytes: PackedByteArray) -> void:
 	for id in states:
 		if id != me:
 			_follow(id, states[id].time, states[id].pose)
+
+
+func _relay_message(id: int, text: String) -> void:
+	text = _clean(text)
+
+	if text.is_empty():
+		return
+
+	_announce_message.rpc(id, text)
+	message_received.emit(id, text)
+
+
+func _relay_typing(id: int, typing: bool) -> void:
+	_announce_typing.rpc(id, typing)
+	typing_received.emit(id, typing)
+
+
+static func _clean(text: String) -> String:
+	return text.replace("\n", " ").strip_edges().left(MAX_MESSAGE)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _message(text: String) -> void:
+	if multiplayer.is_server():
+		_relay_message(multiplayer.get_remote_sender_id(), text)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _announce_message(id: int, text: String) -> void:
+	message_received.emit(id, _clean(text))
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _typing(typing: bool) -> void:
+	if multiplayer.is_server():
+		_relay_typing(multiplayer.get_remote_sender_id(), typing)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _announce_typing(id: int, typing: bool) -> void:
+	typing_received.emit(id, typing)
