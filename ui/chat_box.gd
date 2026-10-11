@@ -1,0 +1,230 @@
+extends CanvasLayer
+
+const Bubble := preload("../world/chat_bubble.gd")
+
+const MAX_LENGTH := 120
+const SIZE := Vector2(480, 48)
+const BOTTOM := 48.0
+const FONT_SIZE := 22
+
+var _players
+var _active := false
+var _claimed := false
+var _panel: Panel
+var _line: LineEdit
+
+
+func _init(players) -> void:
+	_players = players
+	layer = 90
+
+
+func _ready() -> void:
+	_panel = Bubble.panel("remote")
+	_panel.visible = false
+	_panel.anchor_left = 0.5
+	_panel.anchor_right = 0.5
+	_panel.anchor_top = 1.0
+	_panel.anchor_bottom = 1.0
+	_panel.offset_left = -SIZE.x * 0.5
+	_panel.offset_right = SIZE.x * 0.5
+	_panel.offset_top = -BOTTOM - SIZE.y
+	_panel.offset_bottom = -BOTTOM
+
+	_line = LineEdit.new()
+	_line.max_length = MAX_LENGTH
+	_line.placeholder_text = "say something..."
+	_line.context_menu_enabled = false
+	_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	for style in [&"normal", &"focus", &"read_only"]:
+		_line.add_theme_stylebox_override(style, StyleBoxEmpty.new())
+
+	_line.add_theme_font_size_override(&"font_size", FONT_SIZE)
+	_line.add_theme_color_override(&"font_color", Bubble.TEXT["remote"])
+	_line.add_theme_color_override(&"caret_color", Bubble.TEXT["remote"])
+	_line.add_theme_color_override(&"font_placeholder_color", Bubble.TEXT["remote"].lerp(Bubble.BACKGROUNDS["remote"], 0.5))
+	_line.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_line.offset_left = SIZE.y * 0.5
+	_line.offset_right = -SIZE.y * 0.5
+
+	_panel.add_child(_line)
+
+	var root := Control.new()
+
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(_panel)
+	add_child(root)
+
+
+func set_active(active: bool) -> void:
+	_active = active
+
+	if not active:
+		close()
+
+
+func open() -> void:
+	var root := get_tree().root
+
+	root.move_child(get_parent(), root.get_child_count() - 1)
+
+	if not Cursor.has_claim(Cursor.MouseClaim.DIALOGUE):
+		Cursor.claim_pointer(Cursor.MouseClaim.DIALOGUE)
+		_claimed = true
+
+	_panel.visible = true
+	_line.clear()
+	_line.grab_focus()
+
+
+func close() -> void:
+	if _panel == null:
+		return
+
+	_panel.visible = false
+	_line.release_focus()
+	_line.clear()
+
+	if _claimed:
+		_claimed = false
+		Cursor.release_pointer(Cursor.MouseClaim.DIALOGUE)
+
+
+func _input(event: InputEvent) -> void:
+	if not _active or not _panel.visible or not event is InputEventKey:
+		return
+
+	get_viewport().set_input_as_handled()
+
+	if event.pressed:
+		_press(event)
+
+
+func _press(event: InputEventKey) -> void:
+	if event.is_action_pressed(&"pause") or event.keycode == KEY_ESCAPE:
+		close()
+	elif event.is_command_or_control_pressed():
+		_shortcut(event.keycode)
+	else:
+		_edit(event)
+
+
+func _shortcut(keycode: Key) -> void:
+	match keycode:
+		KEY_A:
+			_line.select_all()
+		KEY_C:
+			_copy()
+		KEY_X:
+			_copy()
+			_erase()
+		KEY_V:
+			_insert(DisplayServer.clipboard_get().replace("\n", " "))
+
+
+func _edit(event: InputEventKey) -> void:
+	match event.keycode:
+		KEY_ENTER, KEY_KP_ENTER:
+			_submit(_line.text)
+		KEY_BACKSPACE:
+			if not _erase():
+				_line.delete_char_at_caret()
+		KEY_DELETE:
+			if not _erase():
+				_line.delete_text(_line.caret_column, _line.caret_column + 1)
+		KEY_LEFT:
+			_move(maxi(_line.caret_column - 1, 0))
+		KEY_RIGHT:
+			_move(mini(_line.caret_column + 1, _line.text.length()))
+		KEY_HOME:
+			_move(0)
+		KEY_END:
+			_move(_line.text.length())
+		_:
+			if event.unicode >= 32 and event.unicode != 127:
+				_insert(String.chr(event.unicode))
+
+
+func _copy() -> void:
+	if _line.has_selection():
+		DisplayServer.clipboard_set(_line.get_selected_text())
+
+
+func _erase() -> bool:
+	if not _line.has_selection():
+		return false
+
+	var from := _line.get_selection_from_column()
+	var to := _line.get_selection_to_column()
+
+	_line.deselect()
+	_line.delete_text(from, to)
+	_line.caret_column = from
+
+	return true
+
+
+func _insert(text: String) -> void:
+	_erase()
+	_line.insert_text_at_caret(text)
+
+
+func _move(column: int) -> void:
+	_line.deselect()
+	_line.caret_column = column
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not _active or _panel.visible or not _can_open():
+		return
+
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_T:
+		open()
+		get_viewport().set_input_as_handled()
+
+
+func _can_open() -> bool:
+	if LevelLoader.is_loading or Cursor.get_mode() == Cursor.Mode.MENU:
+		return false
+
+	return not (is_instance_valid(PauseMenu.instance) and PauseMenu.instance.is_paused())
+
+
+func _submit(text: String) -> void:
+	close()
+
+	if text.strip_edges().is_empty():
+		return
+
+	if multiplayer.is_server():
+		_relay(1, text)
+	else:
+		_send.rpc_id(1, text)
+
+
+func _relay(id: int, text: String) -> void:
+	text = text.replace("\n", " ").strip_edges().left(MAX_LENGTH)
+
+	if text.is_empty():
+		return
+
+	_receive.rpc(id, text)
+	_show(id, text)
+
+
+func _show(id: int, text: String) -> void:
+	if _active:
+		_players.say(id, text)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _send(text: String) -> void:
+	if multiplayer.is_server():
+		_relay(multiplayer.get_remote_sender_id(), text)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _receive(id: int, text: String) -> void:
+	_show(id, text.replace("\n", " ").left(MAX_LENGTH))
