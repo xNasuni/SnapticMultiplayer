@@ -112,7 +112,7 @@ func level(effect: Object) -> float:
 
 
 func ratio(effect: Object) -> float:
-	return effect.amount_ratio if is_instance_valid(effect) and "amount_ratio" in effect else 0.0
+	return effect.amount_ratio if is_instance_valid(effect) and effect is Object and "amount_ratio" in effect else 0.0
 
 
 func on_sparks() -> void:
