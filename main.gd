@@ -27,6 +27,7 @@ var _notice := ""
 var _popup
 var _popup_label: Label
 
+var steam_api: Object = null
 
 func _ready() -> void:
 	var id: String = get_meta("mod").id
@@ -59,6 +60,16 @@ func _ready() -> void:
 
 	_screen.host_requested.connect(_host)
 	_screen.join_requested.connect(_join)
+
+	if Engine.has_singleton("Steam"):
+		steam_api = Engine.get_singleton("Steam")
+		var init_res: Dictionary = steam_api.steamInitEx()
+		if init_res["status"] == 0:
+			Log.say("steam successfully initialized! user: " + str(steam_api.getPersonaName()))
+		else:
+			Log.say("steam failed to init: " + str(init_res["status"]) + " " + str(init_res["verbal"]))
+	else:
+		Log.say("steam not found")
 
 	SnapticBase.on_scene(MENU, _show_notice)
 	SnapticBase.add_menu_button("Servers", _screen.open)
