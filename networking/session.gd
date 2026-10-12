@@ -1,28 +1,37 @@
 extends RefCounted
 
-const DEFAULT_MAP := "test_room"
+const DEFAULT_MAP := "mirraxis"
 const DEFAULT_NAME := "Server"
 const DEFAULT_MAX := 32
+const MIN_PLAYERS := 2
 
 var maps := {
-	"test_room": LevelLoader.LevelName.TEST_ROOM,
 	"mirraxis": LevelLoader.LevelName.MIRRAXIS,
+	"test_room": LevelLoader.LevelName.TEST_ROOM,
+	"gym": LevelLoader.LevelName.GYM,
 }
 
 var role := "offline"
 var map := ""
 var server_name := DEFAULT_NAME
 var max_players := DEFAULT_MAX
+var password := ""
 var players := 0
 
 
-func host(map_id: String = DEFAULT_MAP) -> bool:
+func host(options: Dictionary = {}) -> bool:
+	var map_id: String = options.get("map", DEFAULT_MAP)
+	var title: String = str(options.get("name", "")).strip_edges()
+
 	if not maps.has(map_id):
 		push_error("[multiplayer] unknown map " + map_id)
 		return false
 
 	role = "host"
 	map = map_id
+	server_name = title if not title.is_empty() else DEFAULT_NAME
+	max_players = clampi(int(options.get("max_players", DEFAULT_MAX)), MIN_PLAYERS, DEFAULT_MAX)
+	password = str(options.get("password", ""))
 	players = 1
 
 	return true
@@ -42,6 +51,9 @@ func join(map_id: String) -> bool:
 func leave() -> void:
 	role = "offline"
 	map = ""
+	server_name = DEFAULT_NAME
+	max_players = DEFAULT_MAX
+	password = ""
 	players = 0
 
 
@@ -54,7 +66,7 @@ func announcement() -> Dictionary:
 		"name": server_name,
 		"map": map,
 		"host": username(),
-		"private": false,
+		"private": not password.is_empty(),
 		"players": players,
 		"max_players": max_players,
 	}

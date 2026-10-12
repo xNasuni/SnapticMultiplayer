@@ -5,6 +5,7 @@ signal message_received(id: int, text: String)
 signal typing_received(id: int, typing: bool)
 
 const Snapshot := preload("snapshot.gd")
+const Log := preload("log.gd")
 const Interpolator := preload("interpolator.gd")
 
 const MAX_MESSAGE := 120
@@ -13,7 +14,7 @@ const TYPING_TIMEOUT := 3.0
 
 const RATE := 0.05
 const BEAT := 1.0
-const TIMEOUT := 10.0
+const TIMEOUT := 20.0
 const CHANNEL := 1
 
 var local_pose: Callable
@@ -115,6 +116,7 @@ func _check_timeouts(delta: float) -> void:
 
 		for id in _heard.keys():
 			if now - _heard[id] > TIMEOUT * 1000.0:
+				Log.warn("dropping peer %d: no packets for %ds" % [id, int(TIMEOUT)])
 				_heard.erase(id)
 				multiplayer.multiplayer_peer.disconnect_peer(id)
 
@@ -124,6 +126,7 @@ func _check_timeouts(delta: float) -> void:
 
 	if _heard_time > TIMEOUT:
 		_running = false
+		Log.warn("no packets from the host for %ds" % int(TIMEOUT))
 		timed_out.emit()
 
 

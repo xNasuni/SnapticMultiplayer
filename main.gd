@@ -9,6 +9,7 @@ const LevelTransition := preload("ui/level_transition.gd")
 const Connection := preload("networking/connection.gd")
 const Replication := preload("networking/replication.gd")
 const ChatBox := preload("ui/chat_box.gd")
+const Log := preload("networking/log.gd")
 
 const MENU := "res://ui/menu_screen/menu_screen_ui.tscn"
 
@@ -19,7 +20,7 @@ var _conn := Connection.new()
 var _net := Replication.new()
 var _players := Players.new(_net)
 var _chat := ChatBox.new(_net, _players)
-var _screen := ServersScreen.new(_lan)
+var _screen := ServersScreen.new(_lan, _session)
 var _store: RefCounted
 
 var _notice := ""
@@ -52,7 +53,7 @@ func _ready() -> void:
 	_conn.players_changed.connect(_on_players_changed)
 	_conn.roster_changed.connect(_players.set_roster)
 	_conn.accepted.connect(_on_accepted)
-	_conn.refused.connect(func(reason: String) -> void: print("[multiplayer] can't join: ", reason))
+	_conn.refused.connect(_on_refused)
 	_conn.left.connect(_kicked.bind("Server closed"))
 	_net.timed_out.connect(_kicked.bind("Connection timed out"))
 
@@ -63,11 +64,11 @@ func _ready() -> void:
 	SnapticBase.add_menu_button("Servers", _screen.open)
 
 
-func _host() -> void:
-	if not _can_leave() or not _session.host():
+func _host(options: Dictionary) -> void:
+	if not _can_leave() or not _session.host(options):
 		return
 
-	var err := _conn.host(_session.map, _session.max_players, _color())
+	var err := _conn.host(_session.map, _session.max_players, _color(), _session.password)
 
 	if err != OK:
 		push_error("[multiplayer] can't host: %s" % error_string(err))
@@ -77,11 +78,17 @@ func _host() -> void:
 	_enter()
 
 
-func _join(server: Dictionary) -> void:
-	var err := _conn.join(server.address, server.port, _color())
+func _join(server: Dictionary, password: String) -> void:
+	var err := _conn.join(server.address, server.port, _color(), password)
 
 	if err != OK:
 		push_error("[multiplayer] can't join: %s" % error_string(err))
+
+
+func _on_refused(reason: String) -> void:
+	_conn.close()
+	_notice = "can't join: " + reason
+	_show_notice(SnapticBase.menu)
 
 
 func _on_accepted(map: String) -> void:
@@ -94,6 +101,7 @@ func _on_accepted(map: String) -> void:
 
 func _on_level_loaded(_level: Node) -> void:
 	if _session.role != "offline" and LevelLoader.current_level == LevelLoader.LevelName.MENU_SCREEN_BACKGROUND:
+		Log.say("leaving the session: back at the main menu")
 		_leave()
 
 
@@ -115,6 +123,7 @@ func _kicked(message: String) -> void:
 	if _session.role == "offline":
 		return
 
+	Log.say("leaving the session: %s" % message.to_lower())
 	_leave()
 	_notice = message
 
@@ -135,7 +144,7 @@ func _show_notice(_menu: Node) -> void:
 		return
 
 	if _popup == null:
-		_popup = SnapticBase.create_panel("Disconnected", Vector2(380, 130))
+		_popup = SnapticBase.create_panel("Connection", Vector2(380, 130))
 		_popup_label = Label.new()
 		_popup_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_popup_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

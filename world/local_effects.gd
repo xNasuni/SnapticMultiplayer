@@ -105,14 +105,14 @@ func listen(effect: Object, callback: Callable) -> void:
 
 
 func level(effect: Object) -> float:
-	if effect == null or not effect.emitting:
+	if not is_instance_valid(effect) or not effect.emitting:
 		return 0.0
 
 	return clampf(ratio(effect), 0.0, 1.0)
 
 
 func ratio(effect: Object) -> float:
-	return effect.amount_ratio if effect and "amount_ratio" in effect else 0.0
+	return effect.amount_ratio if is_instance_valid(effect) and "amount_ratio" in effect else 0.0
 
 
 func on_sparks() -> void:

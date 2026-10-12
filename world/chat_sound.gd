@@ -2,7 +2,7 @@ extends RefCounted
 
 const MOD := "multiplayer"
 const DIRECTORY := "assets/sound/"
-const VOLUME := 0.25
+const VOLUME := 0.1
 const AUDIBLE := 0.01
 
 static var _streams := {}

@@ -29,6 +29,8 @@ func _ready() -> void:
 
 
 func begin(color: Color) -> void:
+	RemotePlayer.warm()
+
 	_active = true
 	_color = color
 	_tint()
@@ -53,12 +55,12 @@ func say(id: int, text: String) -> void:
 
 	if stack:
 		stack.set_typing(false, 0.0)
-		stack.say(text, id == multiplayer.get_unique_id())
+		stack.say(text, id == _me())
 		_chime(id)
 
 
 func _chime(id: int) -> void:
-	var local := id == multiplayer.get_unique_id()
+	var local := id == _me()
 	var at = _local_head() if local else _avatar_head(id)
 
 	if at == null:
@@ -69,7 +71,7 @@ func _chime(id: int) -> void:
 
 
 func typing(id: int, on: bool, timeout: float) -> void:
-	if id == multiplayer.get_unique_id():
+	if id == _me():
 		return
 
 	var stack = _stack_for(id, on)
@@ -82,7 +84,7 @@ func _stack_for(id: int, create: bool) -> Variant:
 	if not _active or not is_instance_valid(_level) or not _level.is_inside_tree():
 		return null
 
-	if id != multiplayer.get_unique_id() and not _avatars.has(id):
+	if id != _me() and not _avatars.has(id):
 		return null
 
 	var stack = _stacks.get(id)
@@ -156,8 +158,15 @@ func _process(delta: float) -> void:
 	_follow_heads()
 
 
+func _me() -> int:
+	return multiplayer.get_unique_id() if multiplayer.has_multiplayer_peer() else 0
+
+
 func _follow_heads() -> void:
-	var me := multiplayer.get_unique_id()
+	if _stacks.is_empty():
+		return
+
+	var me := _me()
 
 	for id in _stacks.keys():
 		var stack = _stacks[id]

@@ -92,6 +92,11 @@ var _shown := true
 var _audio: RemoteAudio
 
 
+static func warm() -> void:
+	for path in [RIG, PLAYER, MATERIAL, GHOSTS, BOX]:
+		ResourceLoader.load_threaded_request(path)
+
+
 func setup(color: Color, effects := true) -> void:
 	var material: ShaderMaterial = load(MATERIAL).duplicate()
 	var player: PackedScene = load(PLAYER)
