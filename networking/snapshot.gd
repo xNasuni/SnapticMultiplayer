@@ -3,7 +3,7 @@ extends RefCounted
 const Pose := preload("pose.gd")
 
 const PROTOCOL := 1
-const POSE := 41
+const POSE := 42
 const TIME := 4
 const STATE := TIME + POSE
 const ENTRY := 4 + STATE
@@ -22,7 +22,7 @@ const MAGNETIC := 0b10000
 const AFTERIMAGE := 0b100000
 const MARBLE_TRAIL := 0b1000000
 const HIDDEN := 0b10000000
-
+const PAUSED := 0b00000001
 
 static func pack_state(time: int, pose) -> PackedByteArray:
 	var bytes := PackedByteArray()
@@ -80,6 +80,7 @@ static func unpack_world(bytes: PackedByteArray) -> Dictionary:
 
 static func put_pose(bytes: PackedByteArray, at: int, pose) -> void:
 	var flags: int = pose.mode
+	var flags2: int = 0
 	var spin: Quaternion = pose.spin
 
 	if pose.moving:
@@ -94,12 +95,15 @@ static func put_pose(bytes: PackedByteArray, at: int, pose) -> void:
 		flags |= MARBLE_TRAIL
 	if pose.hidden:
 		flags |= HIDDEN
+	if pose.paused:
+		flags2 |= PAUSED
 
 	bytes.encode_float(at, pose.position.x)
 	bytes.encode_float(at + 4, pose.position.y)
 	bytes.encode_float(at + 8, pose.position.z)
 	bytes.encode_float(at + 12, pose.yaw)
 	bytes.encode_u8(at + 16, flags)
+	bytes.encode_u8(at + 41, flags2)
 
 	bytes.encode_s16(at + 17, roundi(spin.x * SPIN))
 	bytes.encode_s16(at + 19, roundi(spin.y * SPIN))
@@ -123,6 +127,7 @@ static func put_pose(bytes: PackedByteArray, at: int, pose) -> void:
 static func get_pose(bytes: PackedByteArray, at: int):
 	var pose = Pose.new()
 	var flags := bytes.decode_u8(at + 16)
+	var flags2 := bytes.decode_u8(at + 41)
 
 	var spin := Quaternion(
 		bytes.decode_s16(at + 17) / SPIN,
@@ -148,6 +153,7 @@ static func get_pose(bytes: PackedByteArray, at: int):
 	pose.afterimage = flags & AFTERIMAGE != 0
 	pose.marble_trail = flags & MARBLE_TRAIL != 0
 	pose.hidden = flags & HIDDEN != 0
+	pose.paused = flags2 & PAUSED != 0
 
 	pose.spin = spin.normalized() if spin.length_squared() > 0.0 else Quaternion.IDENTITY
 

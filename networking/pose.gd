@@ -33,6 +33,7 @@ var magnetic := false
 var afterimage := false
 var marble_trail := false
 var hidden := false
+var paused := false
 
 var events := 0
 var hit_normal := Vector3.UP
@@ -48,6 +49,7 @@ func differs(other) -> bool:
 		or afterimage != other.afterimage \
 		or marble_trail != other.marble_trail \
 		or hidden != other.hidden \
+		or paused != other.paused \
 		or events != other.events \
 		or absf(running - other.running) > STEP \
 		or absf(wall_slide - other.wall_slide) > STEP \
@@ -84,6 +86,7 @@ func mixed(other, t: float):
 	pose.afterimage = near.afterimage
 	pose.marble_trail = near.marble_trail
 	pose.hidden = near.hidden
+	pose.paused = near.paused
 
 	pose.events = near.events
 	pose.hit_normal = near.hit_normal

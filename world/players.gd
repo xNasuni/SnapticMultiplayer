@@ -10,16 +10,19 @@ const RemoteAudio := preload("remote_audio.gd")
 
 const HEAD_HEIGHT := 1.75
 const NAME_FADE := 0.2
+const PAUSE_ICON_SIZE := 0.75
 
 var _net
 var _level: Node
 var _effects := LocalEffects.new()
+var pause_texture: Texture2D
 var _active := false
 var _color := Color.WHITE
 var _players := {}
 var _avatars := {}
 var _stacks := {}
 var _labels := {}
+var _icons := {}
 var _name_alpha := 0.0
 var _audio := RemoteAudio.new()
 
@@ -50,6 +53,10 @@ func end() -> void:
 	for stack in _stacks.values():
 		if is_instance_valid(stack):
 			stack.queue_free()
+	for icon in _icons.values():
+		if is_instance_valid(icon):
+			icon.queue_free()
+	_icons.clear()
 
 	_stacks.clear()
 
@@ -129,6 +136,7 @@ func local_pose() -> Variant:
 	pose.up = up.normalized() if not up.is_zero_approx() else Vector3.UP
 	pose.moving = not GameInput.get_move_vector().is_zero_approx()
 	pose.grounded = player.is_on_floor()
+	pose.paused = PauseMenu.instance.is_paused()
 
 	_effects.watch(player)
 	_effects.fill(pose)
@@ -158,10 +166,40 @@ func _process(delta: float) -> void:
 		if pose != null and is_instance_valid(avatar) and avatar.is_inside_tree():
 			avatar.visible = true
 			avatar.follow(pose, delta)
+			_mark_paused(id, avatar, pose)
 
 	_follow_heads()
 	_update_labels(delta)
 
+func _mark_paused(id: int, avatar: Node3D, pose) -> void:
+	var icon = _icons.get(id)
+
+	if not pose.paused or pause_texture == null:
+		if is_instance_valid(icon):
+			icon.visible = false
+		return
+
+	if not is_instance_valid(icon):
+		icon = Sprite3D.new()
+		icon.texture = pause_texture
+		icon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		icon.shaded = false
+		icon.top_level = true
+		icon.pixel_size = PAUSE_ICON_SIZE / pause_texture.get_width()
+		icon.no_depth_test = true # this is because the texture goes below the player model sometimes, the visibility range below recuperates that
+		icon.visibility_range_end = 25.0
+		icon.visibility_range_end_margin = 5.0
+		icon.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		_level.add_child(icon)
+		_icons[id] = icon
+
+	var center: Vector3 = avatar.global_position
+
+	if pose.mode != Pose.Mode.MARBLE:
+		center += pose.up.normalized() * HEAD_HEIGHT * 0.5
+
+	icon.global_position = center
+	icon.visible = true
 
 func _me() -> int:
 	return multiplayer.get_unique_id() if multiplayer.has_multiplayer_peer() else 0
@@ -239,6 +277,7 @@ func _on_level_loaded(level: Node) -> void:
 	_avatars.clear()
 	_stacks.clear()
 	_labels.clear()
+	_icons.clear()
 	_level = null
 
 	if not _active:
@@ -266,8 +305,10 @@ func _sync() -> void:
 
 			if is_instance_valid(_stacks.get(id)):
 				_stacks[id].queue_free()
-
 			_stacks.erase(id)
+			if is_instance_valid(_icons.get(id)):
+				_icons[id].queue_free()
+			_icons.erase(id)
 
 	if not _active or not is_instance_valid(_level) or not _level.is_inside_tree():
 		return

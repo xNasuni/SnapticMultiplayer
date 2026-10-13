@@ -31,7 +31,7 @@ static func color_of(html: Variant) -> Color:
 
 
 static func player_name_tostring(player: Dictionary) -> String:
-	return color(escape(player.name), player.color)
+	return color("@" + escape(player.name), player.color)
 
 static func player_tags_tostring(player: Dictionary) -> String:
 	var result := ""

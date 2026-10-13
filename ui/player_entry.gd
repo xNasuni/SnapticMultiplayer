@@ -21,7 +21,7 @@ func setup(host: bool, player: Dictionary, style: Callable) -> void:
 	var container = VBoxContainer.new()
 	add_child(container)
 
-	var text := Utils.rich("%s@%s" % [player.prefix, player.name], 18)
+	var text := Utils.rich("%s%s" % [player.prefix, player.name], 18)
 	container.add_child(text)
 
 	var buttons := HBoxContainer.new()

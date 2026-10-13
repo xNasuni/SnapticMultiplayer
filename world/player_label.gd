@@ -88,7 +88,7 @@ func _rebuild() -> void:
 
 
 func set_info(player: Dictionary) -> void:
-	var bbcode: String = player.tags_string + Utils.color("@", player.color) + player.name_string
+	var bbcode: String = player.tags_string + player.name_string
 
 	if bbcode == _text and _sprite != null:
 		return

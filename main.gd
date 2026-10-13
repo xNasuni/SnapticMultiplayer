@@ -91,6 +91,8 @@ func _ready() -> void:
 	_screen.join_requested.connect(_join)
 	_screen.opened.connect(_tags.fetch)
 
+	_players.pause_texture = SnapticBase.load_asset(get_meta("mod").dir + "assets/textures/paused.png")
+
 	SnapticBase.on_scene(MENU, _show_notice)
 	SnapticBase.on_scene(PAUSE_MENU, _on_pause_menu)
 	SnapticBase.add_menu_button("Servers", _screen.open)
