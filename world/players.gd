@@ -4,21 +4,24 @@ const Pose := preload("../networking/pose.gd")
 const RemotePlayer := preload("remote_player.gd")
 const LocalEffects := preload("local_effects.gd")
 const ChatStack := preload("chat_stack.gd")
+const PlayerLabel := preload("player_label.gd")
 const ChatSound := preload("chat_sound.gd")
 const RemoteAudio := preload("remote_audio.gd")
 
 const HEAD_HEIGHT := 1.75
+const NAME_FADE := 0.2
 
 var _net
 var _level: Node
 var _effects := LocalEffects.new()
 var _active := false
 var _color := Color.WHITE
-var _roster := {}
+var _players := {}
 var _avatars := {}
 var _stacks := {}
+var _labels := {}
+var _name_alpha := 0.0
 var _audio := RemoteAudio.new()
-
 
 func _init(net) -> void:
 	_net = net
@@ -40,8 +43,9 @@ func end() -> void:
 	_active = false
 	_color = Color.WHITE
 	_tint()
-	_roster.clear()
+	_players.clear()
 	_sync()
+	_clear_labels()
 
 	for stack in _stacks.values():
 		if is_instance_valid(stack):
@@ -101,8 +105,8 @@ func _stack_for(id: int, create: bool) -> Variant:
 	return stack
 
 
-func set_roster(roster: Dictionary) -> void:
-	_roster = roster
+func set_roster(players: Dictionary) -> void:
+	_players = players
 	_sync()
 
 
@@ -156,6 +160,7 @@ func _process(delta: float) -> void:
 			avatar.follow(pose, delta)
 
 	_follow_heads()
+	_update_labels(delta)
 
 
 func _me() -> int:
@@ -233,6 +238,7 @@ func _avatar_head(id: int) -> Variant:
 func _on_level_loaded(level: Node) -> void:
 	_avatars.clear()
 	_stacks.clear()
+	_labels.clear()
 	_level = null
 
 	if not _active:
@@ -254,7 +260,7 @@ func _sync() -> void:
 	var me := peer.get_unique_id() if connected else 0
 
 	for id in _avatars.keys():
-		if not _roster.has(id):
+		if not _players.has(id):
 			_avatars[id].queue_free()
 			_avatars.erase(id)
 
@@ -270,18 +276,84 @@ func _sync() -> void:
 		if node is RemotePlayer and not node in _avatars.values():
 			node.queue_free()
 
-	for id in _roster:
+	for id in _players:
 		if id == me or _avatars.has(id):
 			continue
 
 		var avatar := RemotePlayer.new()
 
 		avatar.name = "RemotePlayer%d" % id
-		avatar.setup(_roster[id])
+		avatar.setup(_players[id].color)
 		avatar.visible = false
 
 		_level.add_child(avatar)
 		_avatars[id] = avatar
+
+	_sync_labels()
+
+
+func _sync_labels() -> void:
+	for id in _labels.keys():
+		if not _players.has(id) or not is_instance_valid(_labels[id]):
+			if is_instance_valid(_labels[id]):
+				_labels[id].queue_free()
+
+			_labels.erase(id)
+
+	for id in _players:
+		var label = _labels.get(id)
+
+		if not is_instance_valid(label):
+			label = PlayerLabel.new()
+
+			_level.add_child(label)
+			_labels[id] = label
+
+		var player: Dictionary = _players[id]
+		label.set_info(player)
+
+
+func _clear_labels() -> void:
+	for label in _labels.values():
+		if is_instance_valid(label):
+			label.queue_free()
+
+	_labels.clear()
+
+
+func _update_labels(delta: float) -> void:
+	var held := _active and Input.is_physical_key_pressed(KEY_TAB)
+
+	_name_alpha = move_toward(_name_alpha, 1.0 if held else 0.0, delta / NAME_FADE)
+
+	if _labels.is_empty():
+		return
+
+	var me := _me()
+	var camera: Camera3D = get_viewport().get_camera_3d()
+	var alpha := smoothstep(0.0, 1.0, _name_alpha)
+
+	for id in _labels.keys():
+		var label = _labels[id]
+
+		if not is_instance_valid(label):
+			_labels.erase(id)
+			continue
+
+		var head = _local_head() if id == me else _avatar_head(id)
+		var stack = _stacks.get(id)
+
+		if head == null:
+			label.set_alpha(0.0)
+			if is_instance_valid(stack):
+				stack.base = ChatStack.LIFT
+			continue
+
+		label.place(head, camera, delta)
+		label.set_alpha(alpha)
+		
+		if is_instance_valid(stack):
+			stack.base = ChatStack.LIFT + label.footprint() * alpha
 
 
 func _tint() -> void:

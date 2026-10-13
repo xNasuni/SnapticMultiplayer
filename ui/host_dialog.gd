@@ -14,10 +14,12 @@ var _map: OptionButton
 var _players: SpinBox
 var _password: LineEdit
 var _maps: Array
+var _kind: OptionButton
+var _steam
 
-
-func _init(session) -> void:
+func _init(session, steam = null) -> void:
 	_session = session
+	_steam = steam
 	_maps = session.maps.keys()
 
 
@@ -30,7 +32,7 @@ func open(under: Control = null) -> void:
 
 
 func _build() -> void:
-	_dialog = FormDialog.new("Host Server", Vector2(560, 360))
+	_dialog = FormDialog.new("Host Server", Vector2(560, 410))
 
 	_name = LineEdit.new()
 	_name.max_length = NAME_LENGTH
@@ -50,6 +52,12 @@ func _build() -> void:
 	_password.secret = true
 	_password.placeholder_text = "blank for no password"
 
+	if _steam and _steam.available():
+		_kind = OptionButton.new()
+		_kind.add_item("Steam")
+		_kind.add_item("LAN")
+		_dialog.add_row("Network", _kind)
+
 	_dialog.add_row("Server name", _name)
 	_dialog.add_row("Map", _map)
 	_dialog.add_row("Max players", _players)
@@ -62,6 +70,8 @@ func _reset() -> void:
 	_map.select(maxi(_maps.find(_session.DEFAULT_MAP), 0))
 	_players.value = _session.DEFAULT_MAX
 	_password.text = ""
+	if _kind:
+		_kind.select(0)
 
 
 func _confirm() -> void:
@@ -70,4 +80,5 @@ func _confirm() -> void:
 		"map": _maps[_map.selected],
 		"max_players": int(_players.value),
 		"password": _password.text,
+		"kind": "steam" if _kind and _kind.selected == 0 else "lan",
 	})

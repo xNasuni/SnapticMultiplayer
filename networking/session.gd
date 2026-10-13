@@ -2,7 +2,7 @@ extends RefCounted
 
 const DEFAULT_MAP := "mirraxis"
 const DEFAULT_NAME := "Server"
-const DEFAULT_MAX := 32
+const DEFAULT_MAX := 24
 const MIN_PLAYERS := 2
 
 var maps := {
@@ -17,6 +17,7 @@ var server_name := DEFAULT_NAME
 var max_players := DEFAULT_MAX
 var password := ""
 var players := 0
+var display_name := ""
 
 
 func host(options: Dictionary = {}) -> bool:
@@ -72,7 +73,11 @@ func announcement() -> Dictionary:
 	}
 
 
+# this env stuff is for lan only cause theres no other way to have a username outside of steam
 func username() -> String:
+	if display_name != "":
+		return display_name
+
 	for variable in ["USERNAME", "USER"]:
 		var value := OS.get_environment(variable)
 

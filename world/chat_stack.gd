@@ -5,7 +5,7 @@ const Typing := preload("typing_bubble.gd")
 
 const MAX_VISIBLE := 3
 const GAP := 0.06
-const LIFT := 0.45
+const LIFT := 0.35
 
 const ARC := PI * 45.0 / 180.0
 const FADE_FROM := PI * 60.0 / 180.0
@@ -15,6 +15,8 @@ const TURN := 10.0
 const FADE := 8.0
 
 var facing := Vector3.FORWARD
+var top := LIFT
+var base := LIFT
 
 var _bubbles := []
 var _typers := []
@@ -100,7 +102,7 @@ func _orient(delta: float) -> void:
 
 
 func _layout(delta: float) -> void:
-	var offset := LIFT
+	var offset := base
 	var typer = _current_typer()
 
 	if typer:
@@ -112,6 +114,8 @@ func _layout(delta: float) -> void:
 
 		bubble.target = offset
 		offset += bubble.height + GAP
+
+	top = offset
 
 	_advance(_bubbles, delta)
 	_advance(_typers, delta)
