@@ -12,6 +12,7 @@ const PlayerList := preload("ui/player_list.gd")
 const LevelTransition := preload("ui/level_transition.gd")
 const Connection := preload("networking/connection.gd")
 const RemoteTags := preload("networking/remote_tags.gd")
+const WelcomeWindow := preload("ui/welcome_window.gd")
 const Replication := preload("networking/replication.gd")
 const ChatBox := preload("ui/chat_box.gd")
 const Log := preload("networking/log.gd")
@@ -40,6 +41,7 @@ var _session := Session.new()
 var _settings := PlayerSettings.new()
 var _conn := Connection.new()
 var _tags := RemoteTags.new()
+var _welcome := WelcomeWindow.new()
 var _net := Replication.new()
 var _players := Players.new(_net)
 var _chat := ChatBox.new(_net, _players)
@@ -60,6 +62,7 @@ func _ready() -> void:
 
 	_store = SnapticBase.settings(id)
 	_store.define("player_color", Color.WHITE)
+	_store.define("seen_first_time_popup", false)
 	SnapticBase.add_settings_page(id, _settings.build)
 
 	_conn.name = "Connection"
@@ -219,9 +222,16 @@ func _on_accepted(map: String) -> void:
 
 
 func _on_level_loaded(_level: Node) -> void:
-	if _session.role != "offline" and LevelLoader.current_level == LevelLoader.LevelName.MENU_SCREEN_BACKGROUND:
+	if _session.role == "offline":
+		return
+
+	if LevelLoader.current_level == LevelLoader.LevelName.MENU_SCREEN_BACKGROUND:
 		Log.say("leaving the session: back at the main menu")
 		_leave()
+	elif not _store.get_bool("seen_first_time_popup"):
+		_store.set_value("seen_first_time_popup", true)
+		Log.say("onpausemenu %s" % [str(PauseMenu.instance)])
+		_welcome.open(PauseMenu.instance)
 
 
 func _on_players_changed(count: int) -> void:
