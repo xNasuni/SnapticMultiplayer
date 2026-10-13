@@ -15,6 +15,7 @@ const RemoteTags := preload("networking/remote_tags.gd")
 const Replication := preload("networking/replication.gd")
 const ChatBox := preload("ui/chat_box.gd")
 const Log := preload("networking/log.gd")
+const MenuPanel := preload("res://snaptic/menu_panel.gd")
 
 const MENU := "res://ui/menu_screen/menu_screen_ui.tscn"
 const PAUSE_MENU := "res://game/pause_menu/pause_menu.tscn"
@@ -298,6 +299,7 @@ func _on_pause_menu(root: Node) -> void:
 	_player_list = PlayerList.new()
 
 	_player_list.name = "PlayerList"
+	_player_list.theme = load(MenuPanel.THEME)
 	root.add_child(_player_list)
 	_player_list.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
 	_player_list.custom_minimum_size.x = 260
