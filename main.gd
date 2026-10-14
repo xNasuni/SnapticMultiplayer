@@ -313,9 +313,11 @@ func _on_pause_menu(root: Node) -> void:
 	_player_list.name = "PlayerList"
 	_player_list.theme = load(MenuPanel.THEME)
 	root.add_child(_player_list)
-	_player_list.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
-	_player_list.custom_minimum_size.x = 260
-	_player_list.offset_right = 260
+	_player_list.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	_player_list.offset_left = -260
+	_player_list.offset_right = 0
+	_player_list.offset_top = 0
+	_player_list.offset_bottom = 0
 	_player_list.style_button = _screen.style_button
 	_player_list.open_profile_requested.connect(func(player: Dictionary) -> void:
 		steam_api.activateGameOverlayToUser("steamid", player.id))

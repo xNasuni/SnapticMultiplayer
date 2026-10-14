@@ -13,10 +13,6 @@ var style_button: Callable
 func _init() -> void:
 	horizontal_scroll_mode = SCROLL_MODE_DISABLED
 
-	custom_minimum_size.x = 260
-	size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
-
 	_list = VBoxContainer.new()
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
