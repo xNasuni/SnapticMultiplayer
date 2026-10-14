@@ -2,7 +2,6 @@ extends RefCounted
 
 const Pose := preload("pose.gd")
 
-const PROTOCOL := 1
 const POSE := 42
 const TIME := 4
 const STATE := TIME + POSE

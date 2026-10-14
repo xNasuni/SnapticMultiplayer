@@ -12,6 +12,7 @@ const Snapshot := preload("snapshot.gd")
 const Log := preload("log.gd")
 const Utils := preload("../ui/shared/utils.gd")
 
+const PROTOCOL := 1
 const PORT := 27556
 const TIMEOUT_LIMIT := 64
 const TIMEOUT_MIN := 30000
@@ -21,7 +22,7 @@ const LOBBY_PUBLIC := 2  # k_ELobbyTypePublic
 const NAME_LENGTH := 32
 const ENTER_SUCCESS := 1  # k_EChatRoomEnterResponseSuccess
 const TURN_AWAY_DELAY := 1.0
-const BANNED := "You were banned"
+const BANNED := "You are banned"
 
 var _map := ""
 var _color := Color.WHITE
@@ -239,7 +240,7 @@ func _identity() -> Dictionary:
 	return {
 		"snapticbase": SnapticBase.VERSION,
 		"multiplayer": SnapticBase.get_mod("multiplayer").get("version", ""),
-		"protocol": Snapshot.PROTOCOL,
+		"protocol": PROTOCOL,
 	}
 
 
@@ -267,7 +268,7 @@ func _on_peer_connected(id: int) -> void:
 
 
 func _on_connected() -> void:
-	Log.say("connected to the host, sending hello (protocol %d)" % Snapshot.PROTOCOL)
+	Log.say("connected to the host, sending hello (protocol %d)" % PROTOCOL)
 	_hello.rpc_id(1, _identity(), _color.to_html(false), _key, local_name)
 
 
@@ -356,7 +357,7 @@ func kick(id: int, ban := false) -> void:
 	if ban:
 		_banned[_players[id].id] = true
 
-	_turn_away(id, BANNED if ban else "You were kicked")
+	_turn_away(id, "You were banned" if ban else "You were kicked")
 
 
 func _turn_away(id: int, reason: String) -> void:

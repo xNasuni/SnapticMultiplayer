@@ -245,7 +245,6 @@ func _message(text: String) -> void:
 	if multiplayer.is_server():
 		_relay_message(multiplayer.get_remote_sender_id(), text)
 
-
 @rpc("authority", "call_remote", "reliable")
 func _announce_message(id: int, text: String) -> void:
 	message_received.emit(id, _clean(text))
