@@ -77,7 +77,14 @@ func _ready() -> void:
 	add_child(_players)
 	add_child(_resources)
 
-	add_child(_tags)
+	_resources.is_mod_outdated(get_meta("mod").version, func(outdated: bool, new_ver: String) -> void:
+		if outdated:
+			Log.say("multiplayer mod is not up to date")
+			_notice_title = "Multiplayer"
+			_notice = "A new version is available. (+v%s)" % [new_ver]
+			_show_notice(SnapticBase.menu)
+		else:
+			Log.say("multiplayer mod is up to date"))
 
 	_net.local_pose = _players.local_pose
 
@@ -321,7 +328,8 @@ func _on_pause_menu(root: Node) -> void:
 	_player_list.theme = load(MenuPanel.THEME)
 	root.add_child(_player_list)
 	_player_list.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
-	_player_list.offset_left = -260
+	_player_list.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_player_list.offset_left = 0
 	_player_list.offset_right = 0
 	_player_list.offset_top = 0
 	_player_list.offset_bottom = 0

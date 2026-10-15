@@ -29,6 +29,7 @@ func set_players(players: Array) -> void:
 	for player in players:
 		var entry := PlayerEntry.new()
 
+		entry.size_flags_horizontal = Control.SIZE_SHRINK_END
 		entry.setup(_host, player, style_button)
 		entry.open_profile_requested.connect(open_profile_requested.emit)
 		entry.kick_requested.connect(kick_requested.emit)
