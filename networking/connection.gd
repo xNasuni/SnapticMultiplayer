@@ -23,6 +23,7 @@ const NAME_LENGTH := 32
 const ENTER_SUCCESS := 1  # k_EChatRoomEnterResponseSuccess
 const TURN_AWAY_DELAY := 1.0
 const BANNED := "You are banned"
+const HOST_TAG = {"name": "Host", "color": Color.LIGHT_GREEN}
 
 var _map := ""
 var _color := Color.WHITE
@@ -38,14 +39,18 @@ var local_name := ""  # set by main before hosting or joining
 var _players := {}
 var _banned := {}
 
-static func _make_player(player_name: String, color: Color, tags := [], steam_id := 0) -> Dictionary:
-	var player := {"name": _tidy(player_name), "color": color, "tags": tags, "id": steam_id}
-	_restring(player)
-	return player
+static func _make_player(player_name: String, color: Color, steam_id := 0) -> Dictionary:
+	return {"name": _tidy(player_name), "color": color, "id": steam_id}
 
-static func _restring(player: Dictionary) -> void:
+static func _restring(peer_id: int, player: Dictionary) -> void:
+	var local_tags := [HOST_TAG] if peer_id == MultiplayerPeer.TARGET_PEER_SERVER else []
+
 	player.name_string = Utils.player_name_tostring(player)
-	player.tags_string = Utils.player_tags_tostring(player)
+	player.tags_string = Utils.player_tags_tostring(player, local_tags)
+
+func _restring_all() -> void:
+	for id in _players:
+		_restring(id, _players[id])
 
 func _steam_id() -> int:
 	return steam_api.getSteamID() if steam_api != null else 0
@@ -55,26 +60,22 @@ func _steam_id() -> int:
 func _steam_id_of(peer_id: int) -> int:
 	var peer := multiplayer.multiplayer_peer
 
-	if peer != null and peer.has_method("get_steam64_from_peer_id"):
-		return peer.get_steam64_from_peer_id(peer_id)
+	if peer == null or not peer.is_class("SteamMultiplayerPeer"):
+		return 0
 
+	if peer.has_method("get_steam_id_for_peer_id"): # this is the one that exists I think but the docs are so badddddddd
+		return peer.get_steam_id_for_peer_id(peer_id)
+
+	OS.crash("the get_steam_id_for_peer_id method doesn't exist for you (the host)")
 	return 0
 
 
 func refresh_tags() -> void:
-	for player in _players.values():
-		_restring(player)
-
-	roster_changed.emit(_players.duplicate(true))
-
-func add_tag(id: int, tag_name: String, color: Color) -> void:
-	if not multiplayer.is_server() or not _players.has(id):
+	if _players.is_empty():
 		return
 
-	var player: Dictionary = _players[id]
-	player.tags.append({"name": tag_name, "color": color})
-	_restring(player)
-	_publish()
+	_restring_all()
+	roster_changed.emit(get_roster())
 
 func player_of(id: int) -> Dictionary:
 	return _players.get(id, {})
@@ -83,7 +84,8 @@ func host(map: String, max_players: int, color: Color, password := "", use_steam
 	_map = map
 	_color = color
 	_lock = _digest(password)
-	_players = {1: _make_player(local_name, color, [{"name": "Host", "color": Color.LIGHT_GREEN}], _steam_id() if use_steam else 0)}
+	_players = {1: _make_player(local_name, color, _steam_id() if use_steam else 0)}
+	_restring_all()
 	_banned.clear()
 
 	if use_steam:
@@ -105,7 +107,7 @@ func host(map: String, max_players: int, color: Color, password := "", use_steam
 
 	_bind()
 	multiplayer.multiplayer_peer = peer
-	roster_changed.emit(_players.duplicate())
+	roster_changed.emit(get_roster())
 
 	Log.say("hosting %s on port %d for %d players%s" % [map, PORT, max_players, " (password)" if _lock != "" else ""])
 
@@ -141,7 +143,7 @@ func _on_steam_lobby_created(result: int, lobby_id: int) -> void:
 	_lobby_id = lobby_id
 	_bind()
 	multiplayer.multiplayer_peer = peer
-	roster_changed.emit(_players.duplicate())
+	roster_changed.emit(get_roster())
 
 	Log.say("hosting %s via steam lobby %d%s" % [_map, lobby_id, " (password)" if _lock != "" else ""])
 	lobby_created.emit(lobby_id)
@@ -291,7 +293,7 @@ func _on_disconnected(id: int) -> void:
 
 func _publish() -> void:
 	players_changed.emit(_players.size())
-	roster_changed.emit(_players.duplicate(true))
+	roster_changed.emit(get_roster())
 	_roster.rpc(_encode(_players))
 
 static func _encode(players: Dictionary) -> Dictionary:
@@ -303,7 +305,6 @@ static func _encode(players: Dictionary) -> Dictionary:
 			"name": p.name,
 			"id": p.id,
 			"color": p.color.to_html(false),
-			"tags": p.tags.map(func(t): return {"name": t.name, "color": t.color.to_html(false)}),
 		}
 
 	return wire
@@ -314,12 +315,8 @@ static func _decode(wire: Dictionary) -> Dictionary:
 
 	for id in wire:
 		var w: Dictionary = wire[id]
-		var tags := []
 
-		for t in w.get("tags", []):
-			tags.append({"name": str(t.get("name", "")), "color": Utils.color_of(t.get("color"))})
-
-		players[id] = _make_player(str(w.get("name", "")), Utils.color_of(w.get("color")), tags, int(w.get("id", 0)))
+		players[id] = _make_player(str(w.get("name", "")), Utils.color_of(w.get("color")), int(w.get("id", 0)))
 
 	return players
 
@@ -332,7 +329,7 @@ func _hello(identity: Dictionary, color: String, key: String, player_name: Strin
 	var mine := _identity()
 	var steam_id := _steam_id_of(id)
 
-	if _banned.has(steam_id):
+	if steam_id != 0 and _banned.has(steam_id):
 		_turn_away(id, BANNED)
 		return
 
@@ -344,7 +341,8 @@ func _hello(identity: Dictionary, color: String, key: String, player_name: Strin
 		_turn_away(id, "wrong password")
 		return
 
-	_players[id] = _make_player(player_name, Utils.color_of(color), [], steam_id)
+	_players[id] = _make_player(player_name, Utils.color_of(color), steam_id)
+	_restring(id, _players[id])
 	Log.say("accepted peer %d (%d players)" % [id, _players.size()])
 	_accept.rpc_id(id, _map)
 	_publish()
@@ -384,4 +382,8 @@ func _refuse(reason: String) -> void:
 @rpc("authority", "call_remote", "reliable")
 func _roster(wire: Dictionary) -> void:
 	_players = _decode(wire)
-	roster_changed.emit(_players.duplicate(true))
+	_restring_all()
+	roster_changed.emit(get_roster())
+
+func get_roster() -> Dictionary:
+	return _players.duplicate(true)

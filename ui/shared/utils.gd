@@ -1,6 +1,5 @@
 static var remote_tags := {}
 
-
 static func rich(bbcode: String, size: int) -> RichTextLabel:
 	var label := RichTextLabel.new()
 
@@ -33,10 +32,11 @@ static func color_of(html: Variant) -> Color:
 static func player_name_tostring(player: Dictionary) -> String:
 	return color("@" + escape(player.name), player.color)
 
-static func player_tags_tostring(player: Dictionary) -> String:
+static func player_tags_tostring(player: Dictionary, local_tags: Array = []) -> String:
 	var result := ""
+	var tags: Array = local_tags + remote_tags.get(player.id, [])
 
-	for tag: Dictionary in player.tags + remote_tags.get(player.id, []):
+	for tag: Dictionary in tags:
 		result += color("[lb]%s[rb] " % escape(tag.name), tag.color)
 
 	return result

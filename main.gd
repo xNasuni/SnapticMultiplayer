@@ -11,7 +11,7 @@ const PlayerSettings := preload("ui/player_settings.gd")
 const PlayerList := preload("ui/player_list.gd")
 const LevelTransition := preload("ui/level_transition.gd")
 const Connection := preload("networking/connection.gd")
-const RemoteTags := preload("networking/remote_tags.gd")
+const RemoteResources := preload("networking/remote_resources.gd")
 const WelcomeWindow := preload("ui/welcome_window.gd")
 const Replication := preload("networking/replication.gd")
 const ChatBox := preload("ui/chat_box.gd")
@@ -40,7 +40,7 @@ var _lan := Lan.new()
 var _session := Session.new()
 var _settings := PlayerSettings.new()
 var _conn := Connection.new()
-var _tags := RemoteTags.new()
+var _resources := RemoteResources.new()
 var _welcome := WelcomeWindow.new()
 var _net := Replication.new()
 var _players := Players.new(_net)
@@ -49,6 +49,7 @@ var _screen := ServersScreen.new(_lan, _session, _steam_lobby)
 var _store: RefCounted
 
 var _notice := ""
+var _notice_title := "Connection"
 var _popup
 var _popup_label: Label
 
@@ -74,6 +75,8 @@ func _ready() -> void:
 	add_child(_chat)
 	add_child(_lan)
 	add_child(_players)
+	add_child(_resources)
+
 	add_child(_tags)
 
 	_net.local_pose = _players.local_pose
@@ -81,7 +84,7 @@ func _ready() -> void:
 	_conn.players_changed.connect(_on_players_changed)
 	_conn.roster_changed.connect(_players.set_roster)
 	_conn.roster_changed.connect(func(_roster: Dictionary) -> void: _refresh_player_list())
-	_tags.changed.connect(_conn.refresh_tags)
+	_resources.changed.connect(_conn.refresh_tags)
 	_conn.accepted.connect(_on_accepted)
 	_conn.refused.connect(_on_refused)
 	_conn.left.connect(_kicked.bind("Server closed"))
@@ -89,7 +92,6 @@ func _ready() -> void:
 
 	_screen.host_requested.connect(_host)
 	_screen.join_requested.connect(_join)
-	_screen.opened.connect(_tags.fetch)
 
 	_players.pause_texture = SnapticBase.load_asset(get_meta("mod").dir + "assets/textures/paused.png")
 
@@ -189,6 +191,7 @@ func _on_host_failed(reason: String) -> void:
 	_conn.close()
 	_session.leave()
 	_notice = "can't host on steam: " + reason
+	_notice_title = "Connection"
 	_show_notice(SnapticBase.menu)
 
 
@@ -206,6 +209,8 @@ func _join(server: Dictionary, password: String) -> void:
 
 
 func _on_refused(reason: String) -> void:
+	_notice_title = "Connection"
+	
 	if _session.role != "offline":
 		_kicked(reason)
 		return
@@ -257,6 +262,8 @@ func _leave() -> void:
 
 
 func _kicked(message: String) -> void:
+	_notice_title = "Connection"
+
 	if _session.role == "offline":
 		return
 
@@ -281,7 +288,7 @@ func _show_notice(_menu: Node) -> void:
 		return
 
 	if _popup == null:
-		_popup = SnapticBase.create_panel("Connection", Vector2(380, 130))
+		_popup = SnapticBase.create_panel(_notice_title, Vector2(380, 130))
 		_popup_label = Label.new()
 		_popup_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_popup_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

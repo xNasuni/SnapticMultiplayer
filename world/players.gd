@@ -113,7 +113,7 @@ func _stack_for(id: int, create: bool) -> Variant:
 
 
 func set_roster(players: Dictionary) -> void:
-	_players = players
+	_players = players.duplicate()
 	_sync()
 
 
