@@ -4,6 +4,7 @@ signal host_requested(options: Dictionary)
 signal join_requested(server: Dictionary, password: String)
 signal opened
 
+const SnapticBase := preload("res://gdpatch/mods/snapticbase/mod.gd")
 const ServerList := preload("server_list.gd")
 const HostDialog := preload("host_dialog.gd")
 const PasswordDialog := preload("password_dialog.gd")

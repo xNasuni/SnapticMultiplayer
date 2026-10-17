@@ -1,0 +1,13 @@
+id = "multiplayer"
+
+[meta]
+name = "Multiplayer"
+version = "0.2.0"
+authors = ["xNasuni"]
+description = "SNAPTIC demo, but together!"
+website = "https://github.com/xNasuni/SnapticMultiplayer/"
+
+[snapticbase]
+dependencies = [
+    "snapticbase@0.2.x"
+]

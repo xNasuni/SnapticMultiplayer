@@ -1,5 +1,6 @@
 extends Node
 
+const SnapticBase := preload("res://gdpatch/mods/snapticbase/mod.gd")
 const Utils := preload("ui/shared/utils.gd")
 
 const Lan := preload("networking/lan.gd")
@@ -16,7 +17,7 @@ const WelcomeWindow := preload("ui/welcome_window.gd")
 const Replication := preload("networking/replication.gd")
 const ChatBox := preload("ui/chat_box.gd")
 const Log := preload("networking/log.gd")
-const MenuPanel := preload("res://snaptic/menu_panel.gd")
+const MenuPanel := preload("res://gdpatch/mods/snapticbase/menu_panel.gd")
 
 const MENU := "res://ui/menu_screen/menu_screen_ui.tscn"
 const PAUSE_MENU := "res://game/pause_menu/pause_menu.tscn"
@@ -56,7 +57,8 @@ var _popup_label: Label
 var _player_list
 
 func _ready() -> void:
-	var id: String = get_meta("mod").id
+	var mod := SnapticBase.register("multiplayer", get_script().resource_path.get_base_dir())
+	var id: String = mod.id
 
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	LevelLoader.scene_loaded.connect(_on_level_loaded)
@@ -77,7 +79,8 @@ func _ready() -> void:
 	add_child(_players)
 	add_child(_resources)
 
-	_resources.is_mod_outdated(get_meta("mod").version, func(outdated: bool, new_ver: String) -> void:
+	_resources.is_mod_outdated(mod.version, func(outdated: bool, new_ver: String) -> void:
+		#there shouldn't be an incentive to stay on a lower version so a warning on startup should be ok
 		if outdated:
 			Log.say("multiplayer mod is not up to date")
 			_notice_title = "Multiplayer"
@@ -100,7 +103,7 @@ func _ready() -> void:
 	_screen.host_requested.connect(_host)
 	_screen.join_requested.connect(_join)
 
-	_players.pause_texture = SnapticBase.load_asset(get_meta("mod").dir + "assets/textures/paused.png")
+	_players.pause_texture = SnapticBase.load_asset(mod.dir + "assets/textures/paused.png")
 
 	SnapticBase.on_scene(MENU, _show_notice)
 	SnapticBase.on_scene(PAUSE_MENU, _on_pause_menu)
@@ -110,6 +113,9 @@ func _ready() -> void:
 
 
 func _init_steam() -> void:
+	if not Engine.has_singleton("Steam"):
+		GDExtensionManager.load_extension("res://addons/godotsteam/godotsteam.gdextension")
+
 	if not Engine.has_singleton("Steam"):
 		Log.say("steam not found, lan only")
 		return

@@ -8,6 +8,7 @@ signal roster_changed(players: Dictionary)
 signal lobby_created(lobby_id: int)
 signal host_failed(reason: String)
 
+const SnapticBase := preload("res://gdpatch/mods/snapticbase/mod.gd")
 const Snapshot := preload("snapshot.gd")
 const Log := preload("log.gd")
 const Utils := preload("../ui/shared/utils.gd")
@@ -240,7 +241,7 @@ static func _digest(password: String) -> String:
 
 func _identity() -> Dictionary:
 	return {
-		"snapticbase": SnapticBase.VERSION,
+		"snapticbase": SnapticBase.version(),
 		"multiplayer": SnapticBase.get_mod("multiplayer").get("version", ""),
 		"protocol": PROTOCOL,
 	}

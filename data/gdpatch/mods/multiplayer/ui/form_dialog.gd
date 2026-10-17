@@ -2,6 +2,7 @@ extends RefCounted
 
 signal confirmed
 
+const SnapticBase := preload("res://gdpatch/mods/snapticbase/mod.gd")
 const LABEL_WIDTH := 160
 const SPACING := 14
 

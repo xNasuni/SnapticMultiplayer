@@ -1,9 +1,0 @@
-{
-  "id": "multiplayer",
-  "name": "Multiplayer",
-  "authors": ["xNasuni"],
-  "description": "SNAPTIC demo, but together!",
-  "dependencies": ["snapticbase@>=0.1.0"],
-  "version": "0.1.0"
-}
-

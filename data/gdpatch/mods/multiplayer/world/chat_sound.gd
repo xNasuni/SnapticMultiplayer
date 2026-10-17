@@ -1,5 +1,6 @@
 extends RefCounted
 
+const SnapticBase := preload("res://gdpatch/mods/snapticbase/mod.gd")
 const MOD := "multiplayer"
 const DIRECTORY := "assets/sound/"
 const VOLUME := 0.1
@@ -12,8 +13,7 @@ static func stream(kind: String) -> AudioStream:
 	if _streams.has(kind):
 		return _streams[kind]
 
-	var dir: String = SnapticBase.get_mod(MOD).get("dir", MOD)
-	var path := "res://snaptic/mods/%s/%s%s.ogg" % [dir, DIRECTORY, kind]
+	var path: String = SnapticBase.get_mod(MOD).dir + DIRECTORY + kind + ".ogg"
 	var bytes := FileAccess.get_file_as_bytes(path)
 	var loaded: AudioStream = AudioStreamOggVorbis.load_from_buffer(bytes) if not bytes.is_empty() else null
 

@@ -2,6 +2,7 @@ extends Node
 
 signal changed
 
+const SnapticBase := preload("res://gdpatch/mods/snapticbase/mod.gd")
 const Utils := preload("../ui/shared/utils.gd")
 const Log := preload("log.gd")
 
@@ -30,7 +31,7 @@ func is_mod_outdated(version: String, callback: Callable) -> void:
 		callback.call(_is_outdated(version), latest_version))
 
 func _is_outdated(version: String) -> bool:
-	return not latest_version.is_empty() and latest_version != version
+	return not latest_version.is_empty() and SnapticBase.compare_versions(latest_version, version) > 0
 
 func _fetch(url: String, handler: Callable, headers: PackedStringArray) -> void:
 	var request := HTTPRequest.new()
