@@ -11,6 +11,7 @@ const RemoteAudio := preload("remote_audio.gd")
 const HEAD_HEIGHT := 1.75
 const NAME_FADE := 0.2
 const PAUSE_ICON_SIZE := 0.75
+const SHARED := &"multiplayer_shared_material"
 
 var _net
 var _level: Node
@@ -45,7 +46,7 @@ func begin(color: Color) -> void:
 func end() -> void:
 	_active = false
 	_color = Color.WHITE
-	_tint()
+	_restore()
 	_players.clear()
 	_sync()
 	_clear_labels()
@@ -399,7 +400,33 @@ func _update_labels(delta: float) -> void:
 
 func _tint() -> void:
 	var player = Global.get_player()
-	var material = player.get("material") if player else null
 
-	if material:
-		material.set_shader_parameter("albedo", _color)
+	if player and player.get("material"):
+		_dupe_material(player).set_shader_parameter("albedo", _color)
+
+func _dupe_material(player: Node) -> ShaderMaterial:
+	if not player.has_meta(SHARED):
+		var shared: ShaderMaterial = player.material
+		var own: ShaderMaterial = shared.duplicate()
+
+		_swap(player, shared, own)
+		player.set_meta(SHARED, shared)
+	return player.material
+
+func _restore() -> void:
+	var player = Global.get_player()
+
+	if player and player.has_meta(SHARED):
+		_swap(player, player.material, player.get_meta(SHARED))
+		player.remove_meta(SHARED)
+
+static func _swap(player: Node, from: ShaderMaterial, to: ShaderMaterial) -> void:
+	player.material = to
+
+	for mesh: MeshInstance3D in player.find_children("*", "MeshInstance3D", true, false):
+		if mesh.material_override == from:
+			mesh.material_override = to
+
+		for surface in mesh.get_surface_override_material_count():
+			if mesh.get_surface_override_material(surface) == from:
+				mesh.set_surface_override_material(surface, to)
