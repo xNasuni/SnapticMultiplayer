@@ -93,6 +93,7 @@ func _ready() -> void:
 
 	_conn.players_changed.connect(_on_players_changed)
 	_conn.roster_changed.connect(_players.set_roster)
+	_conn.roster_changed.connect(_net.set_roster)
 	_conn.roster_changed.connect(func(_roster: Dictionary) -> void: _refresh_player_list())
 	_resources.changed.connect(_conn.refresh_tags)
 	_conn.accepted.connect(_on_accepted)
@@ -210,6 +211,14 @@ func _on_host_failed(reason: String) -> void:
 
 func _join(server: Dictionary, password: String) -> void:
 	var err: Error
+
+	var mismatch := Connection.mismatch(server.get("identity", ""))
+
+	if mismatch != "":
+		_notice_title = "Connection"
+		_notice = "can't join: " + mismatch
+		_show_notice(SnapticBase.menu)
+		return
 
 	_conn.local_name = _session.username()
 	if server.kind == "steam":
@@ -367,6 +376,7 @@ func _announcement() -> Dictionary:
 	var info := _session.announcement()
 
 	info["port"] = Connection.PORT
+	info["identity"] = _conn.identity_tag()
 
 	return info
 

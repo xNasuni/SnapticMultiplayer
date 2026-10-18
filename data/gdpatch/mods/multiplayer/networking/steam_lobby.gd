@@ -98,6 +98,7 @@ func _on_match_list(lobbies: Array) -> void:
 			"name": title,
 			"map": _steam.getLobbyData(id, "map"),
 			"host": _steam.getLobbyData(id, "host"),
+			"identity": _steam.getLobbyData(id, "identity"),
 			"private": _steam.getLobbyData(id, "private") == "true",
 			"players": int(_steam.getLobbyData(id, "players")),
 			"max_players": int(_steam.getLobbyData(id, "max_players")),

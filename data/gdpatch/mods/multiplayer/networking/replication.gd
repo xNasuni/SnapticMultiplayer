@@ -29,6 +29,7 @@ var _beat_time := 0.0
 var _heard_time := 0.0
 
 var _last = null
+var _audience: Array[int] = []
 var _latest := {}
 var _heard := {}
 var _remote := {}
@@ -59,10 +60,17 @@ func start() -> void:
 func stop() -> void:
 	_running = false
 
+	_audience.clear()
 	_latest.clear()
 	_heard.clear()
 	_remote.clear()
 
+func set_roster(roster: Dictionary) -> void:
+	_audience.clear()
+
+	for id: int in roster:
+		if id != MultiplayerPeer.TARGET_PEER_SERVER:
+			_audience.append(id)
 
 func send_message(text: String) -> void:
 	if not _connected():
@@ -172,7 +180,7 @@ func _forget(id: int) -> void:
 
 
 func _broadcast(beat: bool) -> void:
-	if multiplayer.get_peers().is_empty():
+	if _audience.is_empty():
 		return
 
 	var settle := _settle and not _dirty
@@ -182,7 +190,11 @@ func _broadcast(beat: bool) -> void:
 
 	_settle = _dirty
 	_dirty = false
-	_world.rpc(Snapshot.pack_world(_latest))
+
+	var bytes := Snapshot.pack_world(_latest)
+
+	for id in _audience:
+		_world.rpc_id(id, bytes)
 
 
 func _follow(id: int, time: int, pose) -> void:
@@ -194,10 +206,11 @@ func _follow(id: int, time: int, pose) -> void:
 
 @rpc("any_peer", "call_remote", "unreliable_ordered", CHANNEL)
 func _state(bytes: PackedByteArray) -> void:
-	if not multiplayer.is_server():
+	var id := multiplayer.get_remote_sender_id()
+
+	if not multiplayer.is_server() or not _audience.has(id):
 		return
 
-	var id := multiplayer.get_remote_sender_id()
 	var state := Snapshot.unpack_state(bytes)
 
 	_heard[id] = Time.get_ticks_msec()
@@ -227,12 +240,16 @@ func _relay_message(id: int, text: String) -> void:
 	if text.is_empty():
 		return
 
-	_announce_message.rpc(id, text)
+	for peer in _audience:
+		_announce_message.rpc_id(peer, id, text)
+
 	message_received.emit(id, text)
 
 
 func _relay_typing(id: int, typing: bool) -> void:
-	_announce_typing.rpc(id, typing)
+	for peer in _audience:
+		_announce_typing.rpc_id(peer, id, typing)
+
 	typing_received.emit(id, typing)
 
 
@@ -242,8 +259,10 @@ static func _clean(text: String) -> String:
 
 @rpc("any_peer", "call_remote", "reliable")
 func _message(text: String) -> void:
-	if multiplayer.is_server():
-		_relay_message(multiplayer.get_remote_sender_id(), text)
+	var id := multiplayer.get_remote_sender_id()
+
+	if multiplayer.is_server() and _audience.has(id):
+		_relay_message(id, text)
 
 @rpc("authority", "call_remote", "reliable")
 func _announce_message(id: int, text: String) -> void:
@@ -252,8 +271,10 @@ func _announce_message(id: int, text: String) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func _typing(typing: bool) -> void:
-	if multiplayer.is_server():
-		_relay_typing(multiplayer.get_remote_sender_id(), typing)
+	var id := multiplayer.get_remote_sender_id()
+
+	if multiplayer.is_server() and _audience.has(id):
+		_relay_typing(id, typing)
 
 
 @rpc("authority", "call_remote", "reliable")

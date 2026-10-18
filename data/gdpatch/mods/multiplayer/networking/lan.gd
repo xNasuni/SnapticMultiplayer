@@ -131,6 +131,7 @@ func _receive() -> void:
 			"name": str(data.get("name", "Server")),
 			"map": str(data.get("map", "")),
 			"host": str(data.get("host", "")),
+			"identity": str(data.get("identity", "")),
 			"port": int(data.get("port", 0)),
 			"private": bool(data.get("private", false)),
 			"players": int(data.get("players", 0)),

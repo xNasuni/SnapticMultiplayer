@@ -1,6 +1,7 @@
 extends PanelContainer
 
 const Utils := preload("./shared/utils.gd")
+const Connection := preload("../networking/connection.gd")
 
 signal join_requested(server: Dictionary)
 
@@ -23,6 +24,7 @@ func setup(server: Dictionary, style: Callable) -> void:
 	var bottom := HBoxContainer.new()
 	var join := Button.new()
 	var full: bool = server.players >= server.max_players
+	var mismatch := Connection.mismatch(server.get("identity", ""))
 	var tag := "Public"
 	var tag_color := PUBLIC
 
@@ -59,12 +61,12 @@ func setup(server: Dictionary, style: Callable) -> void:
 	texts.add_child(title)
 	texts.add_child(Utils.rich(Utils.color("Host: @%s" % Utils.escape(server.host), GRAY), 14))
 
-	join.text = "Full" if full else "Join"
-	join.disabled = full
-	join.tooltip_text = "this server is full" if full else "join this server"
+	join.text = "Mismatch" if mismatch != "" else "Full" if full else "Join"
+	join.disabled = mismatch != "" or full
+	join.tooltip_text = mismatch if mismatch != "" else "this server is full" if full else "join this server"
 	join.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	join.pressed.connect(join_requested.emit.bind(server))
-	top.add_child(style.call(join) if style.is_valid() and not full else join)
+	top.add_child(style.call(join) if style.is_valid() else join)
 
 	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(gap)

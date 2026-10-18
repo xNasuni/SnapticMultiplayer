@@ -23,6 +23,7 @@ const LOBBY_PUBLIC := 2  # k_ELobbyTypePublic
 const NAME_LENGTH := 32
 const ENTER_SUCCESS := 1  # k_EChatRoomEnterResponseSuccess
 const TURN_AWAY_DELAY := 1.0
+const HELLO_TIMEOUT := 5.0
 const BANNED := "You are banned"
 const HOST_TAG = {"name": "Host", "color": Color.LIGHT_GREEN}
 
@@ -239,13 +240,41 @@ static func _digest(password: String) -> String:
 	return password.sha256_text() if not password.is_empty() else ""
 
 
-func _identity() -> Dictionary:
+static func _own_version() -> String:
+	return str(SnapticBase.get_mod("multiplayer").get("version", ""))
+
+static func _identity() -> Dictionary:
 	return {
-		"snapticbase": SnapticBase.version(),
-		"multiplayer": SnapticBase.get_mod("multiplayer").get("version", ""),
+		"snapticbase": SnapticBase.version_family(SnapticBase.version()),
+		"multiplayer": SnapticBase.version_family(_own_version()),
 		"protocol": PROTOCOL,
 	}
 
+static func identity_tag() -> String:
+	return JSON.stringify(_identity(), "", true)
+
+static func compatible(theirs: Dictionary) -> bool:
+	return int(theirs.get("protocol", -1)) == PROTOCOL \
+		and SnapticBase.version_matches(SnapticBase.version(), str(theirs.get("snapticbase", ""))) \
+		and SnapticBase.version_matches(_own_version(), str(theirs.get("multiplayer", "")))
+
+
+static func describe(identity: Dictionary) -> String:
+	return "snapticbase %s, multiplayer %s, protocol %s" % [
+		identity.get("snapticbase", "?"), identity.get("multiplayer", "?"), identity.get("protocol", "?")]
+
+
+static func clash(host: Dictionary, guest: Dictionary) -> String:
+	return "different versions, the host has %s, you have %s" % [describe(host), describe(guest)]
+
+static func mismatch(tag: String) -> String:
+	var theirs = JSON.parse_string(tag)
+
+	# remove this later
+	if not theirs is Dictionary:
+		return "the host runs an older version, your identity is " + describe(_identity())
+
+	return "" if compatible(theirs) else clash(theirs, _identity())
 
 func _bind() -> void:
 	if _bound:
@@ -269,6 +298,15 @@ func _on_peer_connected(id: int) -> void:
 
 	Log.say("peer %d connected" % id)
 
+	if multiplayer.is_server():
+		_expect_hello(id)
+
+func _expect_hello(id: int) -> void:
+	await get_tree().create_timer(HELLO_TIMEOUT).timeout
+
+	if multiplayer.has_multiplayer_peer() and multiplayer.get_peers().has(id) and not _players.has(id):
+		Log.warn("dropping peer %d: no handshake in %ds" % [id, int(HELLO_TIMEOUT)])
+		multiplayer.multiplayer_peer.disconnect_peer(id)
 
 func _on_connected() -> void:
 	Log.say("connected to the host, sending hello (protocol %d)" % PROTOCOL)
@@ -334,8 +372,8 @@ func _hello(identity: Dictionary, color: String, key: String, player_name: Strin
 		_turn_away(id, BANNED)
 		return
 
-	if identity != mine:
-		_turn_away(id, "different versions, the host has " + str(mine))
+	if not compatible(identity):
+		_turn_away(id, clash(mine, identity))
 		return
 
 	if key != _lock:
