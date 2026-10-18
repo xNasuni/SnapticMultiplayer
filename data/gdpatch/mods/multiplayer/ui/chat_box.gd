@@ -122,7 +122,7 @@ func _press(event: InputEventKey) -> void:
 	if event.is_action_pressed(&"pause") or event.keycode == KEY_ESCAPE:
 		close()
 	elif event.is_command_or_control_pressed():
-		_shortcut(event.keycode)
+		_shortcut(event.keycode, event.shift_pressed)
 	else:
 		_edit(event)
 
@@ -138,7 +138,7 @@ func _announce_typing() -> void:
 		_net.send_typing(true)
 
 
-func _shortcut(keycode: Key) -> void:
+func _shortcut(keycode: Key, select: bool) -> void:
 	match keycode:
 		KEY_A:
 			_line.select_all()
@@ -149,6 +149,53 @@ func _shortcut(keycode: Key) -> void:
 			_erase()
 		KEY_V:
 			_insert(DisplayServer.clipboard_get().replace("\n", " "))
+		KEY_LEFT:
+			_move(_word_left(), select)
+		KEY_RIGHT:
+			_move(_word_right(), select)
+		KEY_HOME:
+			_move(0, select)
+		KEY_END:
+			_move(_line.text.length(), select)
+		KEY_BACKSPACE:
+			_erase_to(_word_left())
+		KEY_DELETE:
+			_erase_to(_word_right())
+
+func _is_word(column: int) -> bool:
+	var character := _line.text[column]
+
+	return character.to_lower() != character.to_upper() or character.is_valid_int() or character == "_"
+
+func _word_left() -> int:
+	var column := _line.caret_column
+
+	while column > 0 and not _is_word(column - 1):
+		column -= 1
+	while column > 0 and _is_word(column - 1):
+		column -= 1
+
+	return column
+
+func _word_right() -> int:
+	var column := _line.caret_column
+	var length := _line.text.length()
+
+	while column < length and _is_word(column):
+		column += 1
+	while column < length and not _is_word(column):
+		column += 1
+
+	return column
+
+func _erase_to(column: int) -> void:
+	if _erase():
+		return
+
+	var caret := _line.caret_column
+
+	_line.delete_text(mini(caret, column), maxi(caret, column))
+	_line.caret_column = mini(caret, column)
 
 
 func _edit(event: InputEventKey) -> void:
@@ -162,13 +209,19 @@ func _edit(event: InputEventKey) -> void:
 			if not _erase():
 				_line.delete_text(_line.caret_column, _line.caret_column + 1)
 		KEY_LEFT:
-			_move(maxi(_line.caret_column - 1, 0))
+			if _line.has_selection() and not event.shift_pressed:
+				_move(_line.get_selection_from_column())
+			else:
+				_move(maxi(_line.caret_column - 1, 0), event.shift_pressed)
 		KEY_RIGHT:
-			_move(mini(_line.caret_column + 1, _line.text.length()))
+			if _line.has_selection() and not event.shift_pressed:
+				_move(_line.get_selection_to_column())
+			else:
+				_move(mini(_line.caret_column + 1, _line.text.length()), event.shift_pressed)
 		KEY_HOME:
-			_move(0)
+			_move(0, event.shift_pressed)
 		KEY_END:
-			_move(_line.text.length())
+			_move(_line.text.length(), event.shift_pressed)
 		_:
 			if event.unicode >= 32 and event.unicode != 127:
 				_insert(String.chr(event.unicode))
@@ -198,8 +251,22 @@ func _insert(text: String) -> void:
 	_line.insert_text_at_caret(text)
 
 
-func _move(column: int) -> void:
-	_line.deselect()
+func _move(column: int, select := false) -> void:
+	if not select:
+		_line.deselect()
+		_line.caret_column = column
+		return
+
+	var anchor := _line.caret_column
+
+	if _line.has_selection():
+		var from := _line.get_selection_from_column()
+		var to := _line.get_selection_to_column()
+
+		anchor = from if _line.caret_column == to else to
+
+	_line.caret_column = column
+	_line.select(mini(anchor, column), maxi(anchor, column))
 	_line.caret_column = column
 
 
