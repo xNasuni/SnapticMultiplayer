@@ -34,6 +34,7 @@ static func play(parent: Node, kind: String, at: Vector3, gain: float) -> void:
 	var player := AudioStreamPlayer3D.new()
 
 	player.stream = sound
+	player.process_mode = Node.PROCESS_MODE_ALWAYS
 	player.bus = AudioManager.SFX_BUS
 	player.volume_db = linear_to_db(VOLUME * gain)
 	player.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED

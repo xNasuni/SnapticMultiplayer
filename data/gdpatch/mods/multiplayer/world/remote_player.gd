@@ -339,6 +339,7 @@ func _burst() -> void:
 
 		box.max_lifetime = BOX_LIFETIME
 		box.collision_layer = 0
+		box.process_mode = Node.PROCESS_MODE_ALWAYS
 
 		get_parent().add_child(box)
 		box.global_position = at + spread

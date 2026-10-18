@@ -28,6 +28,7 @@ var _oriented := false
 
 func _init() -> void:
 	top_level = true
+	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
 func say(text: String, local: bool) -> void:
