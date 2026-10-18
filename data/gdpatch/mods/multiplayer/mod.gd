@@ -5,6 +5,7 @@ const Utils := preload("ui/shared/utils.gd")
 
 const Lan := preload("networking/lan.gd")
 const SteamLobby := preload("networking/steam_lobby.gd")
+const SteamLibrary := preload("networking/steam_library.gd")
 const Players := preload("world/players.gd")
 const Session := preload("networking/session.gd")
 const ServersScreen := preload("ui/servers_screen.gd")
@@ -114,8 +115,9 @@ func _ready() -> void:
 
 
 func _init_steam() -> void:
-	if not Engine.has_singleton("Steam"):
-		GDExtensionManager.load_extension("res://addons/godotsteam/godotsteam.gdextension")
+	if not Engine.has_singleton("Steam") and not SteamLibrary.load_extension():
+		Log.warn("couldn't extract or load the bundled steam api (%s), lan only" % ProjectSettings.globalize_path(SteamLibrary.folder()))
+		return
 
 	if not Engine.has_singleton("Steam"):
 		Log.say("steam not found, lan only")
