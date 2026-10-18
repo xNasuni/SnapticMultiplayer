@@ -90,6 +90,7 @@ var _events := 0
 var _shown := true
 
 var _audio: RemoteAudio
+var _last_sound_frame := 0
 
 
 static func warm() -> void:
@@ -167,15 +168,21 @@ func follow(pose, delta: float) -> void:
 	_place_floor()
 
 
+func _process(_delta: float) -> void:
+	if _audio and Engine.get_process_frames() - _last_sound_frame > 1:
+		_audio.stop()
+
+
 func _sound(pose, delta: float) -> void:
-	if _audio == null:
+	if _audio == null or not is_inside_tree():
 		return
 
-	var rolling: bool = pose.mode == Pose.Mode.MARBLE and pose.grounded
+	var rolling: bool = _shown and pose.mode == Pose.Mode.MARBLE and pose.grounded
 
+	_last_sound_frame = Engine.get_process_frames()
 	_audio.listen(get_viewport().get_camera_3d())
 	_audio.roll(global_position, _velocity.length(), rolling, delta)
-	_audio.slide(global_position, pose.wall_slide > 0.0, delta)
+	_audio.slide(global_position, _shown and pose.wall_slide > 0.0, delta)
 
 
 func tint(color: Color) -> void:
