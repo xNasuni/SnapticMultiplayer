@@ -64,6 +64,10 @@ func _ready() -> void:
 	add_child(root)
 
 
+func _exit_tree() -> void:
+	close()
+
+
 func set_active(active: bool) -> void:
 	_active = active
 
