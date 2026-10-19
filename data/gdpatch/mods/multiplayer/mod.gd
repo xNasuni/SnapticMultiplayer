@@ -37,6 +37,7 @@ var steam_api: Object = null
 var _steam_lobby := SteamLobby.new()
 var _use_steam := false
 var _pending_host := false
+var _entering := false
 var _host_attempt := 0
 
 var _lan := Lan.new()
@@ -260,7 +261,11 @@ func _on_accepted(map: String) -> void:
 
 
 func _on_level_loaded(_level: Node) -> void:
+	_entering = false
+
 	if _session.role == "offline":
+		if _notice != "" and LevelLoader.current_level != LevelLoader.LevelName.MENU_SCREEN_BACKGROUND:
+			_return_to_menu()
 		return
 
 	if LevelLoader.current_level == LevelLoader.LevelName.MENU_SCREEN_BACKGROUND:
@@ -302,10 +307,17 @@ func _kicked(message: String) -> void:
 	_leave()
 	_notice = message
 
+	if _entering:
+		return
+
 	if LevelLoader.current_level == LevelLoader.LevelName.MENU_SCREEN_BACKGROUND:
 		_show_notice(SnapticBase.menu)
 		return
 
+	_return_to_menu()
+
+
+func _return_to_menu() -> void:
 	Cursor.claim_pointer(Cursor.MouseClaim.LOADING)
 
 	if is_instance_valid(PauseMenu.instance) and PauseMenu.instance.is_paused():
@@ -408,4 +420,5 @@ func _enter() -> void:
 	_chat.set_active(true)
 	_players.begin(_color())
 	_screen.dismiss()
+	_entering = true
 	LevelTransition.start(SnapticBase.menu, _session.level())

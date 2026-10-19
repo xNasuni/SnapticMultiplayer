@@ -396,6 +396,9 @@ func kick(id: int, ban := false) -> void:
 
 	_turn_away(id, "You were banned" if ban else "You were kicked")
 
+	_players.erase(id)
+	_publish()
+
 
 func _turn_away(id: int, reason: String) -> void:
 	Log.warn("turned away peer %d: %s" % [id, reason])
