@@ -23,6 +23,7 @@ const MenuPanel := preload("res://gdpatch/mods/snapticbase/menu_panel.gd")
 const MENU := "res://ui/menu_screen/menu_screen_ui.tscn"
 const PAUSE_MENU := "res://game/pause_menu/pause_menu.tscn"
 
+const STEAM_APP_ID := 5201040
 const STEAM_MAX_PLAYERS := 24
 const LOBBY_TIMEOUT := 10.0
 
@@ -128,7 +129,7 @@ func _init_steam() -> void:
 		return
 
 	var api: Object = Engine.get_singleton("Steam")
-	var res: Dictionary = api.steamInitEx()
+	var res: Dictionary = api.steamInitEx(STEAM_APP_ID)
 
 	if res.get("status", -1) != 0:
 		Log.say("steam failed to init: %s %s" % [res.get("status"), res.get("verbal", "")])
