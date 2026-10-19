@@ -14,7 +14,9 @@ var _info := {}
 var _id := ""
 var _timer := INTERVAL
 var _found := {}
+var _scan := 0.0
 
+var scanning := false
 
 func _ready() -> void:
 	set_process(false)
@@ -58,6 +60,8 @@ func listen() -> void:
 		return
 
 	_listener = peer
+	_scan = INTERVAL
+	scanning = true
 	set_process(true)
 
 
@@ -67,6 +71,7 @@ func stop_listening() -> void:
 		_listener = null
 
 	_found.clear()
+	scanning = false
 	set_process(_sender != null)
 
 
@@ -97,6 +102,11 @@ func _process(delta: float) -> void:
 	if _listener:
 		_receive()
 
+	if scanning:
+		_scan -= delta
+		if _scan <= 0.0:
+			scanning = false
+			changed.emit()
 
 func _send() -> void:
 	var payload := _info.duplicate()

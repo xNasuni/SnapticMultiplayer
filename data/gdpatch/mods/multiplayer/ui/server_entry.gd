@@ -14,6 +14,11 @@ const LIGHT := Color(0.80, 0.80, 0.86)
 const PUBLIC := Color(0.66, 0.89, 0.70)
 const PRIVATE := Color(0.95, 0.60, 0.60)
 
+var _join: Button
+var _unavailable := false
+
+func lock(locked: bool) -> void:
+	_join.disabled = _unavailable or locked
 
 func setup(server: Dictionary, style: Callable) -> void:
 	var card := StyleBoxFlat.new()
@@ -63,6 +68,8 @@ func setup(server: Dictionary, style: Callable) -> void:
 
 	join.text = "Mismatch" if mismatch != "" else "Full" if full else "Join"
 	join.disabled = mismatch != "" or full
+	_join = join
+	_unavailable = join.disabled
 	join.tooltip_text = mismatch if mismatch != "" else "this server is full" if full else "join this server"
 	join.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	join.pressed.connect(join_requested.emit.bind(server))

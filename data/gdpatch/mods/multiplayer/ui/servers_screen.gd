@@ -17,6 +17,13 @@ var _panel
 var _list
 var _steam
 var _friends
+var _refresh_button: Button
+var _host_button: Button
+
+var joining := false:
+	set(value):
+		joining = value
+		_show()
 
 func _init(lan, session, steam = null) -> void:
 	_lan = lan
@@ -36,10 +43,14 @@ func _build() -> void:
 	_friends.empty_text = "no friends are hosting right now"
 
 	_panel.add_back()
-	_panel.add_action("Refresh", _refresh).tooltip_text = "reload the server list"
-	_panel.add_action("Host", _host.open.bind(_panel)).tooltip_text = "start your own server"
+	_refresh_button = _panel.add_action("Refresh", _refresh)
+	_refresh_button.tooltip_text = "reload the server list"
+	_host_button = _panel.add_action("Host", _host.open.bind(_panel))
+	_host_button.tooltip_text = "start your own server"
 	_panel.closed.connect(func() -> void:
 		_lan.stop_listening()
+		_list.loading = false
+		_friends.loading = false
 		if _steam:
 			_steam.stop_listening())
 
@@ -96,10 +107,24 @@ func _refresh() -> void:
 
 
 func _show() -> void:
-	if _list:
-		var all: Array = _lan.servers()
-		if _steam:
-			all += _steam.servers()
-		_list.set_servers(all)
-	if _friends and _steam:
-		_friends.set_servers(_steam.servers(true))
+	if _list == null:
+		return
+
+	var steam_loading: bool = _steam != null and _steam.loading
+	var scanning: bool = _lan.scanning or steam_loading
+	var busy: bool = scanning or joining
+	var all: Array = [] if scanning else _lan.servers()
+
+	if _steam and not steam_loading:
+		all += _steam.servers()
+
+	_list.loading = scanning
+	_list.locked = busy
+	_list.set_servers(all)
+	_refresh_button.disabled = busy
+	_host_button.disabled = joining
+
+	if _steam:
+		_friends.loading = steam_loading
+		_friends.locked = busy
+		_friends.set_servers([] if steam_loading else _steam.servers(true))

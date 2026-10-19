@@ -14,6 +14,7 @@ var _steam: Object = null
 var _info := {}
 var _lobby_id := 0
 var _found := {}
+var loading := false
 
 func setup(steam_api: Object) -> void:
 	_steam = steam_api
@@ -64,12 +65,15 @@ func listen() -> void:
 
 func stop_listening() -> void:
 	_found.clear()
+	loading = false
 
 
 func refresh() -> void:
 	if _steam == null:
 		return
 
+	_found.clear()
+	loading = true
 	_steam.addRequestLobbyListDistanceFilter(DISTANCE_WORLDWIDE)
 	_steam.addRequestLobbyListResultCountFilter(MAX_RESULTS)
 	_steam.addRequestLobbyListStringFilter("game", GAME, COMPARE_EQUAL)
@@ -78,6 +82,7 @@ func refresh() -> void:
 
 func _on_match_list(lobbies: Array) -> void:
 	_found.clear()
+	loading = false
 
 	for id in lobbies:
 		if id == _lobby_id:

@@ -217,7 +217,9 @@ func _join(server: Dictionary, password: String) -> void:
 
 	var mismatch := Connection.mismatch(server.get("identity", ""))
 
+	_screen.joining = true
 	if mismatch != "":
+		_screen.joining = false
 		_notice_title = "Connection"
 		_notice = "can't join: " + mismatch
 		_show_notice(SnapticBase.menu)
@@ -230,10 +232,12 @@ func _join(server: Dictionary, password: String) -> void:
 		err = _conn.join(server.address, server.port, _color(), password)
 
 	if err != OK:
+		_screen.joining = false
 		push_error("[multiplayer] can't join: %s" % error_string(err))
 
 
 func _on_refused(reason: String) -> void:
+	_screen.joining = false
 	_notice_title = "Connection"
 	
 	if _session.role != "offline":
@@ -246,6 +250,8 @@ func _on_refused(reason: String) -> void:
 
 
 func _on_accepted(map: String) -> void:
+	_screen.joining = false
+
 	if not _can_leave() or not _session.join(map):
 		_conn.close()
 		return
