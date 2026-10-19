@@ -1,15 +1,15 @@
 extends RefCounted
 
+const Maps := preload("maps.gd")
+
 const DEFAULT_MAP := "mirraxis"
 const DEFAULT_NAME := "Server"
 const DEFAULT_MAX := 24
 const MIN_PLAYERS := 2
 
-var maps := {
-	"mirraxis": LevelLoader.LevelName.MIRRAXIS,
-	"test_room": LevelLoader.LevelName.TEST_ROOM,
-	"gym": LevelLoader.LevelName.GYM,
-}
+var maps: Dictionary:
+	get:
+		return Maps.available()
 
 var role := "offline"
 var map := ""
