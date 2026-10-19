@@ -151,7 +151,13 @@ func local_pose() -> Variant:
 				pose.position = marble.global_position
 				pose.spin = marble.global_basis.orthonormalized().get_rotation_quaternion()
 		2:
+			var torso = player.get("ragdoll_torso")
+
 			pose.mode = Pose.Mode.RAGDOLL
+
+			if torso:
+				pose.position = torso.global_position
+				pose.spin = torso.global_basis.orthonormalized().get_rotation_quaternion()
 
 	return pose
 

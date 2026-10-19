@@ -2,6 +2,7 @@ extends Node3D
 
 const Pose := preload("../networking/pose.gd")
 const RemoteAudio := preload("remote_audio.gd")
+const RemoteRagdoll := preload("remote_ragdoll.gd")
 
 const RIG := "res://actors/player/art/anon_rig.blend"
 const PLAYER := "res://actors/player/player.tscn"
@@ -19,6 +20,7 @@ const BHOP := "Characterbody/BHopWind"
 const TWIRL := "HeadFollower/HeadShaker/CyclicSmearVFX"
 const SKID := "HeadFollower/HeadFollowerNoRotation/SkidSparksVFX"
 const MAGNET := "MarbleRigidbody/MagnetArea3D/MagneticFieldVFX"
+const RAGDOLL := "anon_rig/Anon/Skeleton3D/RagdollBoneSimulator"
 const WALL := "anon_rig/Anon/Skeleton3D/RightHandAttachment/WallSlideVFX"
 const MARBLE_TRAIL := "HeadFollower/HeadShaker/MarbleAfterimageVFX"
 const BOX := "uid://cb5qj6akobncw"
@@ -32,6 +34,7 @@ const ARM_BONE := "Forearm.R"
 const TORSO_BONE := "TorsoLower"
 const HEAD_OFFSET := Vector3(0, 0.206, 0)
 const RIG_OFFSET := Vector3(0, 0, 0.11427677)
+const RIG_REST := Transform3D(Basis(Vector3.UP, PI), RIG_OFFSET)
 const HEAD_HEIGHT := 1.813
 const HEAD_LAYER := 2
 
@@ -56,6 +59,9 @@ var _head: MeshInstance3D
 var _head_bone: Node3D
 var _skeleton: Skeleton3D
 var _tree: AnimationTree
+var _ragdoll: RemoteRagdoll
+var _limp := false
+var _pinned := Transform3D.IDENTITY
 var _floor: Node3D
 var _anchor: Node3D
 
@@ -108,7 +114,7 @@ func setup(color: Color, effects := true) -> void:
 	tint(color)
 
 	_rig = (load(RIG) as PackedScene).instantiate()
-	_rig.transform = Transform3D(Basis(Vector3.UP, PI), RIG_OFFSET)
+	_rig.transform = RIG_REST
 	add_child(_rig)
 
 	_skeleton = _rig.get_node("Anon/Skeleton3D")
@@ -162,11 +168,44 @@ func follow(pose, delta: float) -> void:
 	if _shown == pose.hidden:
 		_reveal(not pose.hidden)
 
+	_pose_ragdoll(pose)
 	_play(pose)
 	_sound(pose, delta)
 	_place_head()
 	_place_floor()
 
+
+func _pose_ragdoll(pose) -> void:
+	if _ragdoll == null:
+		return
+	var at := Transform3D(Basis(pose.spin), pose.position)
+	var limp: bool = _mode == Pose.Mode.RAGDOLL
+
+	if limp != _limp:
+		_limp = limp
+		if _tree:
+			_tree.active = not limp
+		if limp:
+			_pinned = _rig.global_transform
+			var animations := _rig.get_node_or_null("AnimationPlayer") as AnimationPlayer
+			if animations:
+				animations.play(&"RESET")
+				animations.advance(0)
+
+			_rig.top_level = true
+			_rig.global_transform = _pinned
+			_ragdoll.start(at, _rig, HEAD_BONE, _velocity)
+		else:
+			_ragdoll.stop()
+			_rig.top_level = false
+			_rig.transform = RIG_REST
+	if limp:
+		_ragdoll.paused(pose.paused)
+		_ragdoll.aim(at)
+
+func _physics_process(delta: float) -> void:
+	if _limp:
+		_ragdoll.steer(delta)
 
 func _process(_delta: float) -> void:
 	if _audio and Engine.get_process_frames() - _last_sound_frame > 1:
@@ -386,7 +425,12 @@ func _add_effects(player: PackedScene) -> void:
 		return
 
 	var source := player.instantiate()
+	var simulator := _take(source, RAGDOLL, _skeleton) as PhysicalBoneSimulator3D
 	var ghosts = (load(GHOSTS) as PackedScene).instantiate()
+
+	if simulator:
+		simulator.process_mode = Node.PROCESS_MODE_DISABLED
+		_ragdoll = RemoteRagdoll.new(simulator)
 
 	_jump_dust = _take(source, JUMP_DUST)
 	_land_dust = _take(source, LAND_DUST, _floor)
@@ -487,7 +531,8 @@ func _place_head() -> void:
 		)
 		return
 
-	var top := _head_bone.global_position + _head_bone.global_basis * HEAD_OFFSET
+	var bone := _ragdoll.head() if _limp else _head_bone.global_transform
+	var top := bone.origin + bone.basis * HEAD_OFFSET
 	var basis := global_basis * Basis(Vector3.UP, PI)
 
 	_anchor.global_position = top
