@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 const Bubble := preload("../world/chat_bubble.gd")
+const History := preload("chat_history.gd")
 
 const SIZE := Vector2(480, 48)
 const BOTTOM := 48.0
@@ -14,6 +15,7 @@ var _claimed := false
 var _last_typing := NEVER
 var _panel: Panel
 var _line: LineEdit
+var _history := History.new()
 
 
 func _init(net, players) -> void:
@@ -84,7 +86,10 @@ func open() -> void:
 		Cursor.claim_pointer(Cursor.MouseClaim.DIALOGUE)
 		_claimed = true
 
+	LookInput.set_process_input(false)
+
 	_panel.visible = true
+	_history.reset()
 	_line.clear()
 	_line.grab_focus()
 
@@ -93,8 +98,11 @@ func close() -> void:
 	if _panel == null:
 		return
 
-	if _panel.visible and Time.get_ticks_msec() - _last_typing < _net.TYPING_TIMEOUT * 1000.0:
-		_net.send_typing(false)
+	if _panel.visible:
+		LookInput.set_process_input(true)
+
+		if Time.get_ticks_msec() - _last_typing < _net.TYPING_TIMEOUT * 1000.0:
+			_net.send_typing(false)
 
 	_last_typing = NEVER
 	_panel.visible = false
@@ -222,9 +230,19 @@ func _edit(event: InputEventKey) -> void:
 			_move(0, event.shift_pressed)
 		KEY_END:
 			_move(_line.text.length(), event.shift_pressed)
+		KEY_UP:
+			_recall(_history.older(_line.text))
+		KEY_DOWN:
+			_recall(_history.newer(_line.text))
 		_:
 			if event.unicode >= 32 and event.unicode != 127:
 				_insert(String.chr(event.unicode))
+
+
+func _recall(text: String) -> void:
+	_line.deselect()
+	_line.text = text
+	_line.caret_column = text.length()
 
 
 func _copy() -> void:
@@ -296,6 +314,7 @@ func _submit(text: String) -> void:
 	close()
 
 	if not text.strip_edges().is_empty():
+		_history.add(text)
 		_net.send_message(text)
 
 
