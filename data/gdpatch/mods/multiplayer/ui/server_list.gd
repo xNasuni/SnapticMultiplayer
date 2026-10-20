@@ -51,12 +51,19 @@ func _init() -> void:
 	_empty.add_theme_color_override("font_color", DIM)
 	_list.add_child(_empty)
 
-	_loader = (load(LOADER) as PackedScene).instantiate()
-	_loader.custom_minimum_size = Vector2(64, 64)
-	_loader.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_loader.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var circle := (load(LOADER) as PackedScene).instantiate()
+
+	circle.custom_minimum_size = Vector2(64, 64)
+	_loader = CenterContainer.new()
+	_loader.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_loader.visible = false
-	_list.add_child(_loader)
+	_loader.add_child(circle)
+
+func _ready() -> void:
+	get_parent().add_child.call_deferred(_loader)
+
+func _exit_tree() -> void:
+	_loader.queue_free()
 
 
 func set_servers(servers: Array) -> void:

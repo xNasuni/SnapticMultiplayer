@@ -27,6 +27,7 @@ const PAUSE_MENU := "res://game/pause_menu/pause_menu.tscn"
 const STEAM_APP_ID := 5273300
 const STEAM_MAX_PLAYERS := 24
 const LOBBY_TIMEOUT := 10.0
+const JOIN_TIMEOUT := 20.0
 
 # i had problems with the um enums from godotsteam so idk
 const CFG_P2P_ICE_ENABLE := 104
@@ -39,6 +40,7 @@ var _steam_lobby := SteamLobby.new()
 var _use_steam := false
 var _pending_host := false
 var _entering := false
+var _join_attempt := 0
 var _behind := false
 var _host_attempt := 0
 
@@ -111,6 +113,7 @@ func _ready() -> void:
 
 	_screen.host_requested.connect(_host)
 	_screen.join_requested.connect(_join)
+	_screen.cancelled.connect(_cancel_join)
 
 	_players.pause_texture = SnapticBase.load_asset(mod.dir + "assets/textures/paused.png")
 
@@ -231,6 +234,9 @@ func _join(server: Dictionary, password: String) -> void:
 		_show_notice(SnapticBase.menu)
 		return
 
+	_join_attempt += 1
+	get_tree().create_timer(JOIN_TIMEOUT).timeout.connect(_on_join_timeout.bind(_join_attempt))
+
 	_conn.local_name = _session.username()
 	if server.kind == "steam":
 		err = _conn.join_steam(server.lobby_id, _color(), password)
@@ -241,6 +247,16 @@ func _join(server: Dictionary, password: String) -> void:
 		_screen.joining = false
 		push_error("[multiplayer] can't join: %s" % error_string(err))
 
+
+func _on_join_timeout(attempt: int) -> void:
+	if _screen.joining and attempt == _join_attempt:
+		Log.warn("no answer to the join after %ds" % int(JOIN_TIMEOUT))
+		_on_refused("the host did not answer")
+
+func _cancel_join() -> void:
+	_join_attempt += 1
+	_conn.close()
+	_screen.joining = false
 
 func _on_refused(reason: String) -> void:
 	_screen.joining = false

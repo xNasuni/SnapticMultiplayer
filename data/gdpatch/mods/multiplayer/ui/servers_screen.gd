@@ -3,6 +3,7 @@ extends RefCounted
 signal host_requested(options: Dictionary)
 signal join_requested(server: Dictionary, password: String)
 signal opened
+signal cancelled
 
 const SnapticBase := preload("res://gdpatch/mods/snapticbase/mod.gd")
 const ServerList := preload("server_list.gd")
@@ -49,6 +50,9 @@ func _build() -> void:
 	_host_button = _panel.add_action("Host", _host.open.bind(_panel))
 	_host_button.tooltip_text = "start your own server"
 	_panel.closed.connect(func() -> void:
+		if joining:
+			cancelled.emit()
+
 		_lan.stop_listening()
 		_list.loading = false
 		_friends.loading = false
@@ -133,10 +137,12 @@ func _show() -> void:
 	var steam_loading: bool = _steam != null and _steam.loading
 	var scanning: bool = _lan.scanning or steam_loading
 	var busy: bool = scanning or joining
-	var all: Array = [] if scanning else _lan.servers()
+	var all: Array = []
 
-	if _steam and not steam_loading:
-		all += _steam.servers()
+	if not scanning:
+		all = _lan.servers()
+		if _steam:
+			all += _steam.servers()
 
 	_list.loading = scanning
 	_list.locked = busy
