@@ -24,7 +24,7 @@ const MenuPanel := preload("res://gdpatch/mods/snapticbase/menu_panel.gd")
 const MENU := "res://ui/menu_screen/menu_screen_ui.tscn"
 const PAUSE_MENU := "res://game/pause_menu/pause_menu.tscn"
 
-const STEAM_APP_ID := 5201040
+const STEAM_APP_ID := 5273300
 const STEAM_MAX_PLAYERS := 24
 const LOBBY_TIMEOUT := 10.0
 
