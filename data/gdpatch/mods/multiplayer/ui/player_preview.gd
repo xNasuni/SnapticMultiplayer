@@ -35,9 +35,12 @@ func bind(store, key: String) -> void:
 	viewport.add_child(_avatar)
 	add_child(viewport)
 
-	store.changed.connect(func(changed: String, value: Variant) -> void:
-		if changed == key:
-			_avatar.tint(value))
+	store.changed.connect(_on_changed.bind(key))
+
+
+func _on_changed(changed: String, value: Variant, key: String) -> void:
+	if changed == key:
+		_avatar.tint(value)
 
 
 func _process(delta: float) -> void:
