@@ -253,7 +253,7 @@ func _facing_of(id: int, me: int) -> Vector3:
 func _local_head() -> Variant:
 	var player = Global.get_player()
 
-	if player == null:
+	if player == null or not player.is_inside_tree():
 		return null
 
 	var marble = player.get("marble")
@@ -274,7 +274,7 @@ func _local_head() -> Variant:
 func _avatar_head(id: int) -> Variant:
 	var avatar = _avatars.get(id)
 
-	if is_instance_valid(avatar) and avatar.visible:
+	if is_instance_valid(avatar) and avatar.is_inside_tree() and avatar.visible:
 		return avatar.head_position()
 
 	return null
