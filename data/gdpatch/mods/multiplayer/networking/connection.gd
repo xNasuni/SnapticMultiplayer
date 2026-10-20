@@ -2,6 +2,7 @@ extends Node
 
 signal left
 signal accepted(map: String)
+signal map_changed(map: String)
 signal refused(reason: String)
 signal players_changed(count: int)
 signal roster_changed(players: Dictionary)
@@ -408,6 +409,15 @@ func _turn_away(id: int, reason: String) -> void:
 	if multiplayer.get_peers().has(id):
 		multiplayer.multiplayer_peer.disconnect_peer(id)
 
+
+func change_map(map: String) -> void:
+	if multiplayer.is_server():
+		_map = map
+		_change.rpc(map)
+
+@rpc("authority", "call_remote", "reliable")
+func _change(map: String) -> void:
+	map_changed.emit(map)
 
 @rpc("authority", "call_remote", "reliable")
 func _accept(map: String) -> void:

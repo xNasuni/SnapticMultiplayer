@@ -39,7 +39,7 @@ func host(options: Dictionary = {}) -> bool:
 
 
 func join(map_id: String) -> bool:
-	if not maps.has(map_id):
+	if Maps.level_of(map_id) < 0:
 		push_error("[multiplayer] the host is on a map this game doesn't have: " + map_id)
 		return false
 
@@ -48,6 +48,13 @@ func join(map_id: String) -> bool:
 
 	return true
 
+func move(map_id: String) -> bool:
+	if Maps.level_of(map_id) < 0:
+		return false
+
+	map = map_id
+
+	return true
 
 func leave() -> void:
 	role = "offline"
@@ -59,7 +66,7 @@ func leave() -> void:
 
 
 func level() -> LevelLoader.LevelName:
-	return maps[map]
+	return Maps.level_of(map)
 
 
 func announcement() -> Dictionary:

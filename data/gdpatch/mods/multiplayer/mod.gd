@@ -17,6 +17,7 @@ const RemoteResources := preload("networking/remote_resources.gd")
 const WelcomeWindow := preload("ui/welcome_window.gd")
 const Replication := preload("networking/replication.gd")
 const ChatBox := preload("ui/chat_box.gd")
+const Maps := preload("networking/maps.gd")
 const Log := preload("networking/log.gd")
 const MenuPanel := preload("res://gdpatch/mods/snapticbase/menu_panel.gd")
 
@@ -38,6 +39,7 @@ var _steam_lobby := SteamLobby.new()
 var _use_steam := false
 var _pending_host := false
 var _entering := false
+var _behind := false
 var _host_attempt := 0
 
 var _lan := Lan.new()
@@ -100,6 +102,8 @@ func _ready() -> void:
 	_conn.roster_changed.connect(func(_roster: Dictionary) -> void: _refresh_player_list())
 	_resources.changed.connect(_conn.refresh_tags)
 	_conn.accepted.connect(_on_accepted)
+	_conn.map_changed.connect(_on_map_changed)
+	LevelLoader.queue_emptied.connect(_catch_up)
 	_conn.refused.connect(_on_refused)
 	_conn.left.connect(_kicked.bind("Server closed"))
 	_net.timed_out.connect(_kicked.bind("Connection timed out"))
@@ -268,6 +272,10 @@ func _on_level_loaded(_level: Node) -> void:
 			_return_to_menu()
 		return
 
+	if _session.role == "host" and LevelLoader.current_level != LevelLoader.LevelName.MENU_SCREEN_BACKGROUND \
+			and LevelLoader.current_level != _session.level():
+		_host_moved()
+
 	if LevelLoader.current_level == LevelLoader.LevelName.MENU_SCREEN_BACKGROUND:
 		Log.say("leaving the session: back at the main menu")
 		_leave()
@@ -279,14 +287,44 @@ func _on_level_loaded(_level: Node) -> void:
 
 func _on_players_changed(count: int) -> void:
 	_session.players = count
+	_advertise()
+
+func _advertise() -> void:
 	if _use_steam:
 		_steam_lobby.update(_announcement())
 	else:
 		_lan.update(_announcement())
 
+func _host_moved() -> void:
+	_session.map = Maps.id_of(LevelLoader.current_level)
+	_conn.change_map(_session.map)
+	_advertise()
+
+func _on_map_changed(map: String) -> void:
+	if _session.role != "client":
+		return
+
+	if not _session.move(map):
+		_kicked("The host moved to a level you don't have")
+		return
+
+	_behind = true
+
+	if not (LevelLoader.is_loading or _entering):
+		_catch_up()
+
+func _catch_up() -> void:
+	if not _behind or _session.role != "client":
+		return
+
+	_behind = false
+
+	if LevelLoader.current_level != _session.level():
+		LevelLoader.load_level(_session.level())
 
 func _leave() -> void:
 	_pending_host = false
+	_behind = false
 	_net.stop()
 	_chat.set_active(false)
 	_players.end()
