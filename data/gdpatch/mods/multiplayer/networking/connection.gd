@@ -8,6 +8,7 @@ signal players_changed(count: int)
 signal roster_changed(players: Dictionary)
 signal lobby_created(lobby_id: int)
 signal host_failed(reason: String)
+signal kicked(id: int)
 
 const SnapticBase := preload("res://gdpatch/mods/snapticbase/mod.gd")
 const Snapshot := preload("snapshot.gd")
@@ -395,6 +396,7 @@ func kick(id: int, ban := false) -> void:
 	if ban:
 		_banned[_players[id].id] = true
 
+	kicked.emit(id)
 	_turn_away(id, "You were banned" if ban else "You were kicked")
 
 	_players.erase(id)

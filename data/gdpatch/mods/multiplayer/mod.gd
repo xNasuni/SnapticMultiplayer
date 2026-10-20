@@ -103,6 +103,7 @@ func _ready() -> void:
 	_resources.changed.connect(_conn.refresh_tags)
 	_conn.accepted.connect(_on_accepted)
 	_conn.map_changed.connect(_on_map_changed)
+	_conn.kicked.connect(_net.explode)
 	LevelLoader.queue_emptied.connect(_catch_up)
 	_conn.refused.connect(_on_refused)
 	_conn.left.connect(_kicked.bind("Server closed"))

@@ -21,6 +21,7 @@ var _active := false
 var _color := Color.WHITE
 var _players := {}
 var _avatars := {}
+var _leaving := {}
 var _stacks := {}
 var _labels := {}
 var _icons := {}
@@ -50,6 +51,9 @@ func end() -> void:
 	_players.clear()
 	_sync()
 	_clear_labels()
+
+	for id in _leaving.keys():
+		_drop(id)
 
 	for stack in _stacks.values():
 		if is_instance_valid(stack):
@@ -175,8 +179,29 @@ func _process(delta: float) -> void:
 			avatar.follow(pose, delta)
 			_mark_paused(id, avatar, pose)
 
+	_play_out(delta)
 	_follow_heads()
 	_update_labels(delta)
+
+func _play_out(delta: float) -> void:
+	for id in _leaving.keys():
+		var avatar = _leaving[id]
+		var pose = _net.sample(id, delta)
+
+		if pose != null and is_instance_valid(avatar) and avatar.is_inside_tree():
+			avatar.follow(pose, delta)
+
+		if pose == null or _net.drained(id):
+			_drop(id)
+
+
+func _drop(id: int) -> void:
+	if is_instance_valid(_leaving.get(id)):
+		_leaving[id].queue_free()
+
+	_leaving.erase(id)
+	_net.release(id)
+
 
 func _mark_paused(id: int, avatar: Node3D, pose) -> void:
 	var icon = _icons.get(id)
@@ -282,6 +307,7 @@ func _avatar_head(id: int) -> Variant:
 
 func _on_level_loaded(level: Node) -> void:
 	_avatars.clear()
+	_leaving.clear()
 	_stacks.clear()
 	_labels.clear()
 	_icons.clear()
@@ -307,8 +333,11 @@ func _sync() -> void:
 
 	for id in _avatars.keys():
 		if not _players.has(id):
-			_avatars[id].queue_free()
+			_leaving[id] = _avatars[id]
 			_avatars.erase(id)
+
+			if not _net.bursting(id):
+				_drop(id)
 
 			if is_instance_valid(_stacks.get(id)):
 				_stacks[id].queue_free()
@@ -321,7 +350,7 @@ func _sync() -> void:
 		return
 
 	for node in _level.get_children():
-		if node is RemotePlayer and not node in _avatars.values():
+		if node is RemotePlayer and not node in _avatars.values() and not node in _leaving.values():
 			node.queue_free()
 
 	for id in _players:

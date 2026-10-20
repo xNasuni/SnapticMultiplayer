@@ -34,6 +34,13 @@ func push(time: float, pose) -> void:
 		_poses.pop_front()
 
 
+func drained() -> bool:
+	return _times.is_empty() or _clock >= _times.back()
+
+func ends_with(event: int) -> bool:
+	return not _poses.is_empty() and _poses.back().events & event != 0
+
+
 func sample(delta: float):
 	if _times.is_empty():
 		return null

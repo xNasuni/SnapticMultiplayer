@@ -4,6 +4,7 @@ signal timed_out
 signal message_received(id: int, text: String)
 signal typing_received(id: int, typing: bool)
 
+const Pose := preload("pose.gd")
 const Snapshot := preload("snapshot.gd")
 const Log := preload("log.gd")
 const Interpolator := preload("interpolator.gd")
@@ -33,6 +34,7 @@ var _audience: Array[int] = []
 var _latest := {}
 var _heard := {}
 var _remote := {}
+var _bursting := {}
 
 
 func start() -> void:
@@ -48,6 +50,7 @@ func start() -> void:
 	_latest.clear()
 	_heard.clear()
 	_remote.clear()
+	_bursting.clear()
 
 	if _watching:
 		return
@@ -64,6 +67,7 @@ func stop() -> void:
 	_latest.clear()
 	_heard.clear()
 	_remote.clear()
+	_bursting.clear()
 
 func set_roster(roster: Dictionary) -> void:
 	_audience.clear()
@@ -175,9 +179,32 @@ func _note(id: int, time: int, pose) -> void:
 func _forget(id: int) -> void:
 	_heard.erase(id)
 	_latest.erase(id)
-	_remote.erase(id)
+	_bursting.erase(id)
 	_dirty = true
 
+func release(id: int) -> void:
+	_remote.erase(id)
+
+func bursting(id: int) -> bool:
+	var stream = _remote.get(id)
+	return stream != null and stream.ends_with(Pose.BURST) and not stream.drained()
+
+func drained(id: int) -> bool:
+	var stream = _remote.get(id)
+	return stream == null or stream.drained()
+
+func explode(id: int) -> void:
+	if not _latest.has(id):
+		return
+
+	var state: Dictionary = _latest[id]
+	_bursting[id] = true
+	state.time += 1
+	state.pose.events |= Pose.BURST
+	_follow(id, state.time, state.pose)
+	
+	_dirty = true
+	_broadcast(false)
 
 func _broadcast(beat: bool) -> void:
 	if _audience.is_empty():
@@ -217,6 +244,9 @@ func _state(bytes: PackedByteArray) -> void:
 
 	if state.is_empty():
 		return
+
+	if _bursting.has(id):
+		state.pose.events |= Pose.BURST
 
 	_note(id, state.time, state.pose)
 	_follow(id, state.time, state.pose)
