@@ -13,6 +13,7 @@ var _lan
 var _host
 var _prompt := PasswordDialog.new()
 var _asking := {}
+var _lan_only
 var _panel
 var _list
 var _steam
@@ -77,10 +78,29 @@ func open() -> void:
 
 	_panel.open()
 	opened.emit()
+
+	if _steam == null or not _steam.available():
+		_warn_lan_only()
+
 	_lan.listen()
 	if _steam:
 		_steam.listen()
 	_show()
+
+func _warn_lan_only() -> void:
+	if _lan_only == null:
+		var label := Label.new()
+
+		label.text = "You are not connected to Steam\nSession is in lan only"
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+
+		_lan_only = SnapticBase.create_panel("Warning", Vector2(380, 130))
+		_lan_only.content.add_child(label)
+		_lan_only.add_back("OK")
+
+	_lan_only.open(_panel)
 
 
 func dismiss() -> void:
