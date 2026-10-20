@@ -79,8 +79,13 @@ func set_active(active: bool) -> void:
 
 func open() -> void:
 	var root := get_tree().root
+	var parent: Node = self
 
-	root.move_child(get_parent(), root.get_child_count() - 1)
+	while parent.get_parent() != root:
+		# this should never infinite loop
+		parent = parent.get_parent()
+
+	root.move_child(parent, root.get_child_count() - 1)
 
 	if not Cursor.has_claim(Cursor.MouseClaim.DIALOGUE):
 		Cursor.claim_pointer(Cursor.MouseClaim.DIALOGUE)
