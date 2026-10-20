@@ -425,6 +425,11 @@ func _add_effects(player: PackedScene) -> void:
 		return
 
 	var source := player.instantiate()
+	var original := source.get_node_or_null(RAGDOLL)
+
+	if original:
+		original.set_script(null)
+
 	var simulator := _take(source, RAGDOLL, _skeleton) as PhysicalBoneSimulator3D
 	var ghosts = (load(GHOSTS) as PackedScene).instantiate()
 

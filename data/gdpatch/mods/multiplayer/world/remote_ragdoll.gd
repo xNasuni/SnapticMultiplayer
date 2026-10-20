@@ -24,6 +24,8 @@ func _init(simulator: PhysicalBoneSimulator3D) -> void:
 
 	for bone in simulator.get_children():
 		if bone is PhysicalBone3D:
+			bone.set_disable_scale(true)
+			bone.body_offset = Transform3D.IDENTITY
 			bone.collision_layer = LIMBS
 			bone.collision_mask = WORLD | LIMBS
 			_bones.append(bone)
