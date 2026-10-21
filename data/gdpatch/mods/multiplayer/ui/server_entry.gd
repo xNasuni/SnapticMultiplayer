@@ -2,6 +2,7 @@ extends PanelContainer
 
 const Utils := preload("./shared/utils.gd")
 const Connection := preload("../networking/connection.gd")
+const Maps := preload("../networking/maps.gd")
 
 signal join_requested(server: Dictionary)
 
@@ -29,7 +30,7 @@ func setup(server: Dictionary, style: Callable) -> void:
 	var bottom := HBoxContainer.new()
 	var join := Button.new()
 	var full: bool = server.players >= server.max_players
-	var mismatch := Connection.mismatch(server.get("identity", ""))
+	var mismatch := "you don't have this map" if not Maps.available().has(server.map) else Connection.mismatch(server.get("identity", ""))
 	var tag := "Public"
 	var tag_color := PUBLIC
 
