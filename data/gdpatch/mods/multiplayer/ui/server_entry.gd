@@ -3,6 +3,7 @@ extends PanelContainer
 const Utils := preload("./shared/utils.gd")
 const Connection := preload("../networking/connection.gd")
 const Maps := preload("../networking/maps.gd")
+const HostDialog := preload("host_dialog.gd")
 
 signal join_requested(server: Dictionary)
 
@@ -58,7 +59,7 @@ func setup(server: Dictionary, style: Callable) -> void:
 	var title := Utils.rich("%s %s %s" % [
 		Utils.color("[lb]%s[rb]" % tag, tag_color),
 		Utils.color("(%s)" % Utils.escape(server.map), GRAY),
-		Utils.color(Utils.escape(server.name), WHITE),
+		Utils.color(Utils.escape(server.name.replace("\n", " ").strip_edges().left(HostDialog.NAME_LENGTH)), WHITE),
 	], 18)
 
 	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
