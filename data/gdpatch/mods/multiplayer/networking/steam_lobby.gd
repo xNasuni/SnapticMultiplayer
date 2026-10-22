@@ -56,6 +56,7 @@ func _apply() -> void:
 		_steam.setLobbyData(_lobby_id, str(key), str(_info[key]))
 
 	_steam.setLobbyData(_lobby_id, "host", _steam.getPersonaName())
+	_steam.setLobbyData(_lobby_id, "owner_id", str(_steam.getSteamID()))
 	_steam.setLobbyData(_lobby_id, "game", GAME)
 
 
@@ -97,7 +98,7 @@ func _on_match_list(lobbies: Array) -> void:
 			"kind": "steam",
 			"id": str(id),
 			"lobby_id": id,
-			"owner": _steam.getLobbyOwner(id),
+			"owner": int(_steam.getLobbyData(id, "owner_id")),
 			"address": "",
 			"port": 0,
 			"name": title,

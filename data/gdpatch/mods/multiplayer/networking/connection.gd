@@ -198,6 +198,13 @@ func _on_steam_lobby_joined(lobby_id: int, _permissions: int, _locked: bool, res
 		return
 
 	var owner_id: int = steam_api.getLobbyOwner(lobby_id)
+
+	if not _listing_is_honest(lobby_id, owner_id):
+		Log.warn("lobby %d spoofed its owner" % lobby_id)
+		steam_api.leaveLobby(lobby_id)
+		refused.emit("this server is lying about who is hosting it")
+		return
+
 	var peer: MultiplayerPeer = ClassDB.instantiate("SteamMultiplayerPeer")
 	var err: Error = peer.create_client(owner_id, 0)
 
@@ -214,6 +221,10 @@ func _on_steam_lobby_joined(lobby_id: int, _permissions: int, _locked: bool, res
 	multiplayer.multiplayer_peer = peer
 
 	Log.say("connecting to the host through steam")
+
+
+func _listing_is_honest(lobby_id: int, owner_id: int) -> bool:
+	return steam_api.getLobbyData(lobby_id, "owner_id") == str(owner_id)
 
 
 func close() -> void:
