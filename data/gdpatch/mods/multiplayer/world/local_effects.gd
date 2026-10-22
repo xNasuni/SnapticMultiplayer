@@ -20,6 +20,7 @@ var _until := {}
 var _magnetized := false
 var _impacting := false
 var _cooked := false
+var _shockwave := 0
 var _last_collision := 0
 
 var _player: Node
@@ -36,10 +37,12 @@ func watch(player: Node) -> void:
 	_player = player
 	_until.clear()
 	_cooked = false
+	_shockwave = 0
 
-	listen(player.get("jump_vfx"), raise.bind(Pose.JUMP))
+	listen(player.get("jump_vfx"), on_jump)
 	listen(player.get("landing_dust_vfx"), raise.bind(Pose.LAND))
 	listen(player.get("impact_trail_vfx"), raise.bind(Pose.TRAIL))
+	listen(player.get("bounce_vfx"), raise.bind(Pose.BOUNCE))
 	listen(player.get("sparks_vfx"), on_sparks)
 
 	var marble = player.get("marble")
@@ -79,6 +82,8 @@ func fill(pose) -> void:
 	pose.twirl = skid.spin if skid else Vector3.ZERO
 	pose.magnetic = field != null and field.emitting
 	pose.afterimage = ghosts != null and ghosts.emitting
+	pose.ramp = ghosts.ramp_index if ghosts else 0
+	pose.shockwave = _shockwave
 
 
 func raise(bit: int) -> void:
@@ -113,6 +118,13 @@ func level(effect: Object) -> float:
 
 func ratio(effect: Object) -> float:
 	return effect.amount_ratio if is_instance_valid(effect) and effect is Object and "amount_ratio" in effect else 0.0
+
+
+func on_jump() -> void:
+	var level = _player.get("jump_vfx").get("shockwave_level")
+
+	_shockwave = level if level is int else 0
+	raise(Pose.JUMP)
 
 
 func on_sparks() -> void:

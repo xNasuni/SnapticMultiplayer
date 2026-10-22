@@ -8,6 +8,7 @@ const RIG := "res://actors/player/art/anon_rig.blend"
 const PLAYER := "res://actors/player/player.tscn"
 const MATERIAL := "res://actors/player/art/anon_matcap_material.tres"
 const GHOSTS := "res://features/vfx/rig_afterimage/rig_afterimage_vfx.tscn"
+const GHOST_STYLE := "anon_rig/RigAfterimageVFX"
 
 const FEET := "HeadFollower/HeadFollowerNoRotation/TorsoFollower/"
 const JUMP_DUST := FEET + "JumpingDustVFX"
@@ -16,6 +17,7 @@ const LAND_DUST := FEET + "FloorRayCast/FloorMarker/LandingDustVFX"
 const RUN_DUST := FEET + "FloorRayCast/FloorMarker/RunningDustVFX"
 const SHADOW := FEET + "FloorRayCast/FloorMarker/DropShadow"
 const SPARKS := "HeadFollower/MultiSparksVFX"
+const BOUNCE := "HeadFollower/BounceVFX"
 const BHOP := "Characterbody/BHopWind"
 const TWIRL := "HeadFollower/HeadShaker/CyclicSmearVFX"
 const SKID := "HeadFollower/HeadFollowerNoRotation/SkidSparksVFX"
@@ -75,6 +77,7 @@ var _magnet: Node
 var _skid: Node
 var _skid_material: ParticleProcessMaterial
 var _sparks: Node
+var _bounce: Node
 var _trail: Node
 var _twirl: Node3D
 var _twirl_material: ShaderMaterial
@@ -259,6 +262,7 @@ func _play(pose) -> void:
 		_magnet.emitting = pose.magnetic
 
 	if _ghosts:
+		_ghosts.ramp_index = pose.ramp
 		_ghosts.emitting = pose.afterimage
 
 	if _marble_trail and pose.marble_trail != _trailing:
@@ -308,7 +312,7 @@ func _react(fresh: int, pose) -> void:
 		_burst()
 
 	if fresh & Pose.JUMP:
-		_jump()
+		_jump(pose.shockwave)
 
 	if fresh & Pose.LAND:
 		_land()
@@ -318,6 +322,12 @@ func _react(fresh: int, pose) -> void:
 
 	if fresh & Pose.TRAIL and _trail:
 		_trail.emit_vfx()
+
+	if fresh & Pose.BOUNCE and _bounce:
+		_bounce.emit_vfx({
+			&"global_position": head_position(),
+			&"direction": _velocity if not _velocity.is_zero_approx() else _up,
+		})
 
 	if _audio == null:
 		return
@@ -345,7 +355,7 @@ static func run(effect: Node, ratio: float) -> void:
 		effect.amount_ratio = ratio
 
 
-func _jump() -> void:
+func _jump(shockwave: int) -> void:
 	var rolling := _mode == Pose.Mode.MARBLE
 	var feet := global_position - (_up * MARBLE_RADIUS if rolling else Vector3.ZERO)
 
@@ -353,6 +363,7 @@ func _jump() -> void:
 		_fire("jumpsquat")
 
 	if _jump_dust:
+		_jump_dust.shockwave_level = shockwave
 		_jump_dust.emit_vfx({&"position": feet, &"normal": _up})
 
 	if _audio:
@@ -447,9 +458,16 @@ func _add_effects(player: PackedScene) -> void:
 	_bhop = _take(source, BHOP)
 	_magnet = _take(source, MAGNET)
 	_sparks = _take(source, SPARKS)
+	_bounce = _take(source, BOUNCE)
 	_skid = _take(source, SKID, _anchor)
 	_twirl = _take(source, TWIRL, _anchor)
 	_marble_trail = _take(source, MARBLE_TRAIL, _anchor)
+
+	var style := source.get_node_or_null(GHOST_STYLE)
+	if style:
+		ghosts.ghost_material = style.ghost_material
+		ghosts.alpha_curve = style.alpha_curve
+		ghosts.color_ramps = style.color_ramps
 
 	ghosts.source = _body
 	ghosts.head = _head

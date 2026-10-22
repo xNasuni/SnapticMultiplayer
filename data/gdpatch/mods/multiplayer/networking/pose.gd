@@ -10,6 +10,7 @@ const BUMP := 16
 const MAGNET := 32
 const CLANG := 64
 const BURST := 128
+const BOUNCE := 256
 
 const MOVED := 0.02
 const TURNED := 0.03
@@ -34,6 +35,8 @@ var afterimage := false
 var marble_trail := false
 var hidden := false
 var paused := false
+var ramp := 0
+var shockwave := 0
 
 var events := 0
 var hit_normal := Vector3.UP
@@ -50,6 +53,7 @@ func differs(other) -> bool:
 		or marble_trail != other.marble_trail \
 		or hidden != other.hidden \
 		or paused != other.paused \
+		or ramp != other.ramp \
 		or events != other.events \
 		or absf(running - other.running) > STEP \
 		or absf(wall_slide - other.wall_slide) > STEP \
@@ -87,6 +91,8 @@ func mixed(other, t: float):
 	pose.marble_trail = near.marble_trail
 	pose.hidden = near.hidden
 	pose.paused = near.paused
+	pose.ramp = near.ramp
+	pose.shockwave = near.shockwave
 
 	pose.events = near.events
 	pose.hit_normal = near.hit_normal

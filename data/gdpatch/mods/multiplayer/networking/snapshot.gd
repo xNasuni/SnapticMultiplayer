@@ -22,6 +22,10 @@ const AFTERIMAGE := 0b100000
 const MARBLE_TRAIL := 0b1000000
 const HIDDEN := 0b10000000
 const PAUSED := 0b00000001
+const BOUNCE := 0b00000010
+const TWO_BITS := 0b11
+const RAMP_SHIFT := 2
+const SHOCKWAVE_SHIFT := 4
 
 static func pack_state(time: int, pose) -> PackedByteArray:
 	var bytes := PackedByteArray()
@@ -96,6 +100,11 @@ static func put_pose(bytes: PackedByteArray, at: int, pose) -> void:
 		flags |= HIDDEN
 	if pose.paused:
 		flags2 |= PAUSED
+	if pose.events & Pose.BOUNCE:
+		flags2 |= BOUNCE
+
+	flags2 |= clampi(pose.ramp, 0, TWO_BITS) << RAMP_SHIFT
+	flags2 |= clampi(pose.shockwave, 0, TWO_BITS) << SHOCKWAVE_SHIFT
 
 	bytes.encode_float(at, pose.position.x)
 	bytes.encode_float(at + 4, pose.position.y)
@@ -162,6 +171,12 @@ static func get_pose(bytes: PackedByteArray, at: int):
 	pose.skid = from_byte(bytes.decode_u8(at + 28), 1.0)
 
 	pose.events = bytes.decode_u8(at + 29)
+
+	if flags2 & BOUNCE:
+		pose.events |= Pose.BOUNCE
+
+	pose.ramp = (flags2 >> RAMP_SHIFT) & TWO_BITS
+	pose.shockwave = (flags2 >> SHOCKWAVE_SHIFT) & TWO_BITS
 
 	pose.hit_normal = normal.normalized() if normal.length_squared() > 0.0 else Vector3.UP
 	pose.hit_strength = from_byte(bytes.decode_u8(at + 33), MAX_HIT)
