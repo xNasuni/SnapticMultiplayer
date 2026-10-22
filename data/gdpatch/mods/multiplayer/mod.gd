@@ -274,8 +274,15 @@ func _on_refused(reason: String) -> void:
 func _on_accepted(map: String) -> void:
 	_screen.joining = false
 
-	if not _can_leave() or not _session.join(map):
+	if not _can_leave():
 		_conn.close()
+		return
+
+	if not _session.join(map):
+		_conn.close()
+		_notice_title = "Connection"
+		_notice = "can't join: you don't have this map"
+		_show_notice(SnapticBase.menu)
 		return
 
 	_enter()
