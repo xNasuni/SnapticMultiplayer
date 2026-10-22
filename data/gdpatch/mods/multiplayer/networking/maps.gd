@@ -9,10 +9,24 @@ const BLACKLIST: Array[String] = [
 ]
 
 static var _extra := {}
+static var _scenes := {}
 static var _hidden: Array[int] = []
 
-static func register(id: String, level: int) -> void:
-	_extra[id] = level
+static func register(id: String, scene: String) -> void:
+	var key: int = _extra.get(id, LevelLoader.LevelName.size() + _scenes.size())
+
+	_extra[id] = key
+	_scenes[key] = scene
+
+static func open(level: int) -> void:
+	var scene: String = _scenes.get(level, "")
+	if scene.is_empty():
+		LevelLoader.load_level(level)
+		return
+
+	LevelLoader.drop_scene(LevelLoader.current_status)
+	LevelLoader.current_level = level
+	LevelLoader.current_status = LevelLoader.queue_scene(scene, null, Global.get_world)
 
 static func blacklist(level: int) -> void:
 	if level not in _hidden:

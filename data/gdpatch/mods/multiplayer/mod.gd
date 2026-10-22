@@ -344,7 +344,7 @@ func _catch_up() -> void:
 	_behind = false
 
 	if LevelLoader.current_level != _session.level():
-		LevelLoader.load_level(_session.level())
+		Maps.open(_session.level())
 
 func _leave() -> void:
 	_pending_host = false
