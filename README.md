@@ -1,4 +1,5 @@
 # SnapticMultiplayer
+<img src="./data/gdpatch/mods/multiplayer/icon.png" align="right">
 
 multiplayer mod for Snaptic DEMO
 
