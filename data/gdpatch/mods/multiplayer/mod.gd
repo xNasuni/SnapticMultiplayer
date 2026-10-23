@@ -69,6 +69,7 @@ func _ready() -> void:
 
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	LevelLoader.scene_loaded.connect(_on_level_loaded)
+	LevelLoader.load_started.connect(_on_load_started)
 
 	_store = SnapticBase.settings(id)
 	_store.define("player_color", Color.WHITE)
@@ -286,6 +287,12 @@ func _on_accepted(map: String) -> void:
 		return
 
 	_enter()
+
+
+func _on_load_started(_path: String) -> void:
+	if _session.role == "host" and LevelLoader.current_level != LevelLoader.LevelName.MENU_SCREEN_BACKGROUND \
+			and LevelLoader.current_level != _session.level():
+		_host_moved()
 
 
 func _on_level_loaded(_level: Node) -> void:
