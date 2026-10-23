@@ -89,6 +89,9 @@ var _mode: int = Pose.Mode.BODY
 var _spin := Quaternion.IDENTITY
 var _up := Vector3.UP
 var _velocity := Vector3.ZERO
+var velocity: Vector3:
+	get:
+		return _velocity
 var _placed := false
 var _airborne := false
 var _air_blend := 0.0
@@ -449,6 +452,9 @@ func _add_effects(player: PackedScene) -> void:
 		_ragdoll = RemoteRagdoll.new(simulator)
 
 	_jump_dust = _take(source, JUMP_DUST)
+
+	if _jump_dust:
+		_jump_dust.owner = self
 	_land_dust = _take(source, LAND_DUST, _floor)
 	_run_dust = _take(source, RUN_DUST, _floor)
 	_shadow = _take(source, SHADOW, _floor)
