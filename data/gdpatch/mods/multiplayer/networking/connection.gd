@@ -15,7 +15,7 @@ const Snapshot := preload("snapshot.gd")
 const Log := preload("log.gd")
 const Utils := preload("../ui/shared/utils.gd")
 
-const PROTOCOL := 1
+const PROTOCOL := 2
 const PORT := 27556
 const TIMEOUT_LIMIT := 64
 const TIMEOUT_MIN := 30000
