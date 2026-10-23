@@ -74,6 +74,8 @@ func _ready() -> void:
 	_store = SnapticBase.settings(id)
 	_store.define("player_color", Color.WHITE)
 	_store.define("seen_first_time_popup", false)
+	_store.define("chat_popups", true)
+	_chat.bind(_store)
 	SnapticBase.add_settings_page(id, _settings.build)
 
 	_conn.name = "Connection"
@@ -102,6 +104,7 @@ func _ready() -> void:
 	_conn.players_changed.connect(_on_players_changed)
 	_conn.roster_changed.connect(_players.set_roster)
 	_conn.roster_changed.connect(_net.set_roster)
+	_conn.roster_changed.connect(_chat.on_roster)
 	_conn.roster_changed.connect(func(_roster: Dictionary) -> void: _refresh_player_list())
 	_resources.changed.connect(_conn.refresh_tags)
 	_conn.accepted.connect(_on_accepted)
