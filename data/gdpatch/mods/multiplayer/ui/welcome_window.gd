@@ -10,7 +10,7 @@ const BODY := "[center][b][rainbow freq=0.2 sat=.8 val=0.8 speed=1.1]You made it
 
 Everyone in this server can see you, so [wave amp=20.0 freq=-5.0 connected=1][b]say hi![/b][/wave]
 
-Press [b][color=light_blue]T[/color][/b] to send messages, hold [b][color=light_blue]Tab[/color][/b] to see everyone's names, and open the pause menu to see the playerlist.
+Press [b][color=light_blue]T/Enter[/color][/b] to send messages, hold [b][color=light_blue]Z[/color][/b] to peek at the chat, hold [b][color=light_blue]Tab[/color][/b] to see everyone's names, and open the pause menu to see the playerlist.
 
 You can [b][color=light_blue][i]toggle mouse capture[/i][/color][/b] to click windows like this using [action=pointer_toggle].
 
