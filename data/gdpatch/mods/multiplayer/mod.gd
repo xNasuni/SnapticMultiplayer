@@ -31,8 +31,6 @@ const JOIN_TIMEOUT := 20.0
 
 # i had problems with the um enums from godotsteam so idk
 const CFG_P2P_ICE_ENABLE := 104
-const CFG_SCOPE_GLOBAL := 1
-const CFG_TYPE_INT32 := 1
 
 var _steam_ok := false
 var steam_api: Object = null
@@ -152,7 +150,7 @@ func _init_steam() -> void:
 	Log.say("steam initialized, user: " + str(steam_api.getPersonaName()))
 
 	steam_api.initRelayNetworkAccess()
-	steam_api.setConfigValue(CFG_P2P_ICE_ENABLE, CFG_SCOPE_GLOBAL, 0, CFG_TYPE_INT32, 0)
+	steam_api.setGlobalConfigValueInt32(CFG_P2P_ICE_ENABLE, 0)
 
 	_session.display_name = steam_api.getPersonaName()
 	_conn.attach_steam(steam_api)
