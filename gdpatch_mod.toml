@@ -2,7 +2,7 @@ id = "multiplayer"
 
 [meta]
 name = "Multiplayer"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["xNasuni"]
 description = "SNAPTIC demo, but together!"
 website = "https://github.com/xNasuni/SnapticMultiplayer/"
